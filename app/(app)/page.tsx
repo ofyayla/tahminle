@@ -17,10 +17,10 @@ export default async function MacGunuPage() {
     getLeaderboard(user.id),
     prisma.prediction.findMany({
       where: { userId: user.id, status: "open" },
-      select: { matchId: true },
+      select: { matchId: true, choice: true },
     }),
   ]);
-  const openMatchIds = new Set(openPredictions.map((p) => p.matchId));
+  const predictionByMatchId = new Map(openPredictions.map((p) => [p.matchId, p.choice]));
 
   const matchDTOs: MatchDTO[] = matches.map((m) => ({
     id: m.id,
@@ -35,7 +35,8 @@ export default async function MacGunuPage() {
     prevOddsDraw: m.prevOddsDraw,
     prevOddsAway: m.prevOddsAway,
     status: m.status,
-    hasOpenPrediction: openMatchIds.has(m.id),
+    hasOpenPrediction: predictionByMatchId.has(m.id),
+    predictedChoice: (predictionByMatchId.get(m.id) as "1" | "X" | "2" | undefined) ?? null,
   }));
 
   const favMeta = user.favoriteTeam ? TEAM_META[user.favoriteTeam as TeamCode] : null;

@@ -12,4 +12,5 @@ export type MatchDTO = {
   prevOddsAway: number | null;
   status: string;
   hasOpenPrediction: boolean;
+  predictedChoice: "1" | "X" | "2" | null;
 };

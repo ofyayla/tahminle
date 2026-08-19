@@ -55,13 +55,15 @@ export default function MatchCard({
       </div>
 
       <div className="flex gap-2">
-        <OddsButton label="1" value={match.oddsHome} prevValue={match.prevOddsHome} disabled={disabled} onClick={() => onPick("1")} />
-        <OddsButton label="X" value={match.oddsDraw} prevValue={match.prevOddsDraw} disabled={disabled} onClick={() => onPick("X")} />
-        <OddsButton label="2" value={match.oddsAway} prevValue={match.prevOddsAway} disabled={disabled} onClick={() => onPick("2")} />
+        <OddsButton label="1" value={match.oddsHome} prevValue={match.prevOddsHome} disabled={disabled} selected={match.predictedChoice === "1"} onClick={() => onPick("1")} />
+        <OddsButton label="X" value={match.oddsDraw} prevValue={match.prevOddsDraw} disabled={disabled} selected={match.predictedChoice === "X"} onClick={() => onPick("X")} />
+        <OddsButton label="2" value={match.oddsAway} prevValue={match.prevOddsAway} disabled={disabled} selected={match.predictedChoice === "2"} onClick={() => onPick("2")} />
       </div>
 
       {match.hasOpenPrediction && (
-        <p className="mt-3 text-center text-xs font-semibold text-gold">Bu maç için açık tahminin var</p>
+        <p className="mt-3 text-center text-xs font-semibold text-gold">
+          Tahminin: {match.predictedChoice === "1" ? match.homeTeam : match.predictedChoice === "2" ? match.awayTeam : "Berabere"}
+        </p>
       )}
       {match.status === "finished" && (
         <p className="mt-3 text-center text-xs font-semibold text-ink-faint">Maç sonuçlandı</p>
