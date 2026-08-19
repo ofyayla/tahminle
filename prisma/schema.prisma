@@ -1,0 +1,65 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String
+  favoriteTeam String? // GS | FB | BJK | null
+  balance      Int      @default(1000)
+  startBalance Int      @default(1000)
+  createdAt    DateTime @default(now())
+
+  predictions Prediction[]
+}
+
+model Match {
+  id            String   @id @default(cuid())
+  externalId    String   @unique
+  homeTeam      String
+  awayTeam      String
+  league        String?
+  kickoff       DateTime
+  oddsHome      Float
+  oddsDraw      Float
+  oddsAway      Float
+  prevOddsHome  Float?
+  prevOddsDraw  Float?
+  prevOddsAway  Float?
+  oddsUpdatedAt DateTime @default(now())
+  status        String   @default("upcoming") // upcoming | live | finished
+  result        String? // "1" | "X" | "2"
+  createdAt     DateTime @default(now())
+
+  predictions Prediction[]
+}
+
+model Prediction {
+  id         String    @id @default(cuid())
+  userId     String
+  matchId    String
+  choice     String // "1" | "X" | "2"
+  stake      Int
+  oddsAtPick Float
+  status     String    @default("open") // open | won | lost
+  payout     Int?
+  createdAt  DateTime  @default(now())
+  settledAt  DateTime?
+
+  user  User  @relation(fields: [userId], references: [id])
+  match Match @relation(fields: [matchId], references: [id])
+
+  @@index([userId])
+  @@index([matchId])
+}

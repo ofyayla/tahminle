@@ -1,26 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0a0d16;
+  --bg-elevated: #10131f;
+  --card: #141a2b;
+  --card-border: #232a3d;
+  --gold: #f6c945;
+  --gold-dim: #a98a2e;
+  --ink: #f5f6fa;
+  --ink-dim: #9aa2b8;
+  --ink-faint: #616a80;
+  --green: #3ecf8e;
+  --red: #ef5865;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-card: var(--card);
+  --color-card-border: var(--card-border);
+  --color-gold: var(--gold);
+  --color-gold-dim: var(--gold-dim);
+  --color-ink: var(--ink);
+  --color-ink-dim: var(--ink-dim);
+  --color-ink-faint: var(--ink-faint);
+  --color-green: var(--green);
+  --color-red: var(--red);
+  --font-display: var(--font-archivo-black);
+  --font-sans: var(--font-manrope);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--bg);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-manrope), Arial, Helvetica, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-archivo-black), Arial, Helvetica, sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 4px;
 }
