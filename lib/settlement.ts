@@ -26,31 +26,35 @@ export async function settleDueMatches() {
     include: { predictions: { where: { status: "open" } } },
   });
 
-  for (const match of dueMatches) {
-    const result = pickWeightedOutcome(match.oddsHome, match.oddsDraw, match.oddsAway);
+  await Promise.all(
+    dueMatches.map(async (match) => {
+      const result = pickWeightedOutcome(match.oddsHome, match.oddsDraw, match.oddsAway);
 
-    await prisma.match.update({
-      where: { id: match.id },
-      data: { status: "finished", result },
-    });
+      await Promise.all([
+        prisma.match.update({
+          where: { id: match.id },
+          data: { status: "finished", result },
+        }),
+        ...match.predictions.map(async (pred) => {
+          const won = pred.choice === result;
+          const payout = won ? Math.round(pred.stake * pred.oddsAtPick) : 0;
 
-    for (const pred of match.predictions) {
-      const won = pred.choice === result;
-      const payout = won ? Math.round(pred.stake * pred.oddsAtPick) : 0;
-
-      await prisma.prediction.update({
-        where: { id: pred.id },
-        data: { status: won ? "won" : "lost", payout, settledAt: new Date() },
-      });
-
-      if (won) {
-        await prisma.user.update({
-          where: { id: pred.userId },
-          data: { balance: { increment: payout } },
-        });
-      }
-    }
-  }
+          await Promise.all([
+            prisma.prediction.update({
+              where: { id: pred.id },
+              data: { status: won ? "won" : "lost", payout, settledAt: new Date() },
+            }),
+            won
+              ? prisma.user.update({
+                  where: { id: pred.userId },
+                  data: { balance: { increment: payout } },
+                })
+              : Promise.resolve(),
+          ]);
+        }),
+      ]);
+    })
+  );
 
   return dueMatches.length;
 }

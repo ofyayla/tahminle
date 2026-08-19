@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { getCurrentUser } from "@/lib/auth";
-import { getUpcomingMatches, getWalletSummary } from "@/lib/data";
+import { getLeaderboard, getUpcomingMatches, getWalletSummary } from "@/lib/data";
 import { formatTL, formatTime } from "@/lib/format";
 import MatchBoard from "@/components/MatchBoard";
 import type { MatchDTO } from "@/lib/types";
@@ -11,15 +11,15 @@ export default async function MacGunuPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const [matches, wallet] = await Promise.all([
+  const [matches, wallet, leaderboard, openPredictions] = await Promise.all([
     getUpcomingMatches(),
     getWalletSummary(user.id),
+    getLeaderboard(user.id),
+    prisma.prediction.findMany({
+      where: { userId: user.id, status: "open" },
+      select: { matchId: true },
+    }),
   ]);
-
-  const openPredictions = await prisma.prediction.findMany({
-    where: { userId: user.id, status: "open" },
-    select: { matchId: true },
-  });
   const openMatchIds = new Set(openPredictions.map((p) => p.matchId));
 
   const matchDTOs: MatchDTO[] = matches.map((m) => ({
@@ -103,13 +103,28 @@ export default async function MacGunuPage() {
           Bu hafta sahne senin.
         </h1>
 
-        <div className="relative mt-5 inline-flex items-center gap-2.5 rounded-2xl border border-card-border bg-black/40 px-4 py-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold/20 text-gold">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M3 10h18" /></svg>
+        <div className="relative mt-5 flex flex-wrap items-stretch gap-2.5">
+          <div className="flex flex-1 items-center gap-2.5 rounded-2xl border border-card-border bg-black/40 px-4 py-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold/20 text-gold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M3 10h18" /></svg>
+            </div>
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-dim">Sanal Bakiye</div>
+              <div className="font-display text-lg text-gold">{formatTL(wallet.total)}</div>
+            </div>
           </div>
-          <div>
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-dim">Sanal Bakiye</div>
-            <div className="font-display text-lg text-gold">{formatTL(wallet.total)}</div>
+
+          <div className="flex flex-1 items-center gap-2.5 rounded-2xl border border-card-border bg-black/40 px-4 py-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green/20 text-green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><path d="M8 20V10M13 20V4M18 20v-7" /></svg>
+            </div>
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-dim">Sıralama</div>
+              <div className="font-display text-lg">
+                #{leaderboard.you?.rank ?? "-"}
+                <span className="ml-1 text-xs font-sans font-normal text-ink-dim">/ {leaderboard.totalPlayers}</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>

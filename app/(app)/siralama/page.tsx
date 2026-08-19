@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { getLeaderboard } from "@/lib/data";
+import { formatTL } from "@/lib/format";
 import LeaderboardList from "@/components/LeaderboardList";
 
 export default async function SiralamaPage() {
@@ -14,7 +15,7 @@ export default async function SiralamaPage() {
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">Taraftar Ligi</p>
         <h1 className="font-display text-3xl">Sıralama</h1>
         <p className="mt-2 text-sm text-ink-dim">
-          Sanal bakiyene göre diğer taraftarlar arasındaki yerin. Tutarlar herkes için gizli — sadece sıra görünür.
+          Sanal bakiyene göre diğer taraftarlar arasındaki yerin.
         </p>
       </section>
 
@@ -25,8 +26,9 @@ export default async function SiralamaPage() {
               <div className="text-[11px] font-bold uppercase tracking-wide text-gold-dim">Senin Sıran</div>
               <div className="font-display text-2xl">#{you.rank}</div>
             </div>
-            <div className="text-right text-sm text-ink-dim">
-              {totalPlayers} taraftar arasında
+            <div className="text-right">
+              <div className="font-display text-lg text-gold">{formatTL(you.balance)}</div>
+              <div className="text-xs text-ink-dim">{totalPlayers} taraftar arasında</div>
             </div>
           </div>
         </section>

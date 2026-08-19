@@ -84,41 +84,46 @@ async function fetchTrackedMatches(): Promise<BackendOddsMatch[]> {
 
 export async function scrapeAndUpdateMatches() {
   const matches = await fetchTrackedMatches();
-  const results = [];
+  if (matches.length === 0) return [];
 
-  for (const m of matches) {
-    const existing = await prisma.match.findUnique({ where: { externalId: m.externalId } });
+  const existingRows = await prisma.match.findMany({
+    where: { externalId: { in: matches.map((m) => m.externalId) } },
+  });
+  const existingById = new Map(existingRows.map((row) => [row.externalId, row]));
 
-    const match = await prisma.match.upsert({
-      where: { externalId: m.externalId },
-      update: {
-        homeTeam: m.homeTeam,
-        awayTeam: m.awayTeam,
-        kickoff: m.kickoff,
-        oddsHome: m.oddsHome,
-        oddsDraw: m.oddsDraw,
-        oddsAway: m.oddsAway,
-        prevOddsHome: existing?.oddsHome ?? null,
-        prevOddsDraw: existing?.oddsDraw ?? null,
-        prevOddsAway: existing?.oddsAway ?? null,
-        oddsUpdatedAt: new Date(),
-        status: m.kickoff.getTime() < Date.now() ? "live" : "upcoming",
-      },
-      create: {
-        externalId: m.externalId,
-        homeTeam: m.homeTeam,
-        awayTeam: m.awayTeam,
-        league: m.league,
-        kickoff: m.kickoff,
-        oddsHome: m.oddsHome,
-        oddsDraw: m.oddsDraw,
-        oddsAway: m.oddsAway,
-        status: m.kickoff.getTime() < Date.now() ? "live" : "upcoming",
-      },
-    });
+  const results = await Promise.all(
+    matches.map((m) => {
+      const existing = existingById.get(m.externalId);
 
-    results.push(match);
-  }
+      return prisma.match.upsert({
+        where: { externalId: m.externalId },
+        update: {
+          homeTeam: m.homeTeam,
+          awayTeam: m.awayTeam,
+          kickoff: m.kickoff,
+          oddsHome: m.oddsHome,
+          oddsDraw: m.oddsDraw,
+          oddsAway: m.oddsAway,
+          prevOddsHome: existing?.oddsHome ?? null,
+          prevOddsDraw: existing?.oddsDraw ?? null,
+          prevOddsAway: existing?.oddsAway ?? null,
+          oddsUpdatedAt: new Date(),
+          status: m.kickoff.getTime() < Date.now() ? "live" : "upcoming",
+        },
+        create: {
+          externalId: m.externalId,
+          homeTeam: m.homeTeam,
+          awayTeam: m.awayTeam,
+          league: m.league,
+          kickoff: m.kickoff,
+          oddsHome: m.oddsHome,
+          oddsDraw: m.oddsDraw,
+          oddsAway: m.oddsAway,
+          status: m.kickoff.getTime() < Date.now() ? "live" : "upcoming",
+        },
+      });
+    })
+  );
 
   return results;
 }

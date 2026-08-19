@@ -13,6 +13,10 @@ const manrope = Manrope({
   subsets: ["latin"],
 });
 
+// Keeps serverless functions close to the Supabase project (ap-northeast-1 / Tokyo)
+// to avoid the cross-region round-trip latency Prisma queries would otherwise pay.
+export const preferredRegion = "hnd1";
+
 export const metadata: Metadata = {
   title: "Tahminle — Maç Günü Kontrol Odası",
   description:

@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
+import { formatTL } from "@/lib/format";
 
 type Row = {
   rank: number;
   id: string;
   displayName: string;
   favoriteTeam: string | null;
+  balance: number;
   isYou: boolean;
 };
 
@@ -60,11 +63,14 @@ export default function LeaderboardList({ rows }: { rows: Row[] }) {
                 <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-bg-elevated font-display text-sm">
                   {row.rank <= 3 ? MEDAL[row.rank - 1] : `#${row.rank}`}
                 </div>
-                <div
-                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border-2 font-display text-[11px]"
-                  style={{ borderColor: meta?.color ?? "#616a80", color: meta?.color ?? "#9aa2b8" }}
-                >
-                  {meta?.short ?? row.displayName.slice(0, 2).toUpperCase()}
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-bg-elevated">
+                  {meta ? (
+                    <Image src={meta.logo} alt={meta.name} width={40} height={40} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="font-display text-[11px] text-ink-dim">
+                      {row.displayName.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-bold">
@@ -72,12 +78,9 @@ export default function LeaderboardList({ rows }: { rows: Row[] }) {
                   </div>
                   <div className="text-[11px] text-ink-dim">{meta?.name ?? "Takım seçilmedi"}</div>
                 </div>
-                <div className="flex items-center gap-1.5 rounded-full bg-bg-elevated px-2.5 py-1.5 text-ink-faint">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5">
-                    <rect x="3" y="11" width="18" height="10" rx="2" />
-                    <path d="M7 11V7a5 5 0 0110 0v4" />
-                  </svg>
-                  <span className="text-[10px] font-bold tracking-wide">GİZLİ</span>
+                <div className="flex-shrink-0 text-right">
+                  <div className="font-display text-sm text-gold">{formatTL(row.balance)}</div>
+                  <div className="text-[10px] text-ink-faint">bakiye</div>
                 </div>
               </div>
             );

@@ -8,8 +8,7 @@ export async function syncMatchState() {
   } catch (err) {
     console.error(err);
   }
-  await refreshMatchStatuses();
-  await settleDueMatches();
+  await Promise.all([refreshMatchStatuses(), settleDueMatches()]);
 }
 
 export async function getUpcomingMatches() {
@@ -25,20 +24,21 @@ export async function getMatchById(id: string) {
 }
 
 export async function getWalletSummary(userId: string) {
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-  const openPredictions = await prisma.prediction.findMany({
-    where: { userId, status: "open" },
-  });
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  const [user, openPredictions, settledThisWeek] = await Promise.all([
+    prisma.user.findUniqueOrThrow({ where: { id: userId } }),
+    prisma.prediction.findMany({ where: { userId, status: "open" } }),
+    prisma.prediction.findMany({
+      where: { userId, status: { in: ["won", "lost"] }, settledAt: { gte: weekAgo } },
+    }),
+  ]);
+
   const lockedInOpen = openPredictions.reduce((sum, p) => sum + p.stake, 0);
   const potentialReturn = openPredictions.reduce(
     (sum, p) => sum + Math.round(p.stake * p.oddsAtPick),
     0
   );
-
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const settledThisWeek = await prisma.prediction.findMany({
-    where: { userId, status: { in: ["won", "lost"] }, settledAt: { gte: weekAgo } },
-  });
   const weekChange = settledThisWeek.reduce((sum, p) => {
     if (p.status === "won") return sum + (p.payout ?? 0) - p.stake;
     return sum - p.stake;
@@ -156,6 +156,7 @@ export async function getLeaderboard(currentUserId: string) {
     id: u.id,
     displayName: u.displayName,
     favoriteTeam: u.favoriteTeam,
+    balance: u.balance,
     isYou: u.id === currentUserId,
   }));
 
