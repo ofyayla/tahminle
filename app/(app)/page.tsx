@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { getCurrentUser } from "@/lib/auth";
-import { getLeaderboard, getUpcomingMatches, getWalletSummary } from "@/lib/data";
+import { getCommunityPulse, getLeaderboard, getUpcomingMatches, getWalletSummary } from "@/lib/data";
 import { formatTL, formatTime } from "@/lib/format";
 import MatchBoard from "@/components/MatchBoard";
 import type { MatchDTO } from "@/lib/types";
@@ -21,6 +21,7 @@ export default async function MacGunuPage() {
     }),
   ]);
   const predictionByMatchId = new Map(openPredictions.map((p) => [p.matchId, p.choice]));
+  const pulseByMatchId = await getCommunityPulse(matches.map((m) => m.id));
 
   const matchDTOs: MatchDTO[] = matches.map((m) => ({
     id: m.id,
@@ -37,6 +38,7 @@ export default async function MacGunuPage() {
     status: m.status,
     hasOpenPrediction: predictionByMatchId.has(m.id),
     predictedChoice: (predictionByMatchId.get(m.id) as "1" | "X" | "2" | undefined) ?? null,
+    pulse: pulseByMatchId[m.id] ?? { total: 0, home: 0, draw: 0, away: 0 },
   }));
 
   const favMeta = user.favoriteTeam ? TEAM_META[user.favoriteTeam as TeamCode] : null;

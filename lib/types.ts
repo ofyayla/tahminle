@@ -13,4 +13,5 @@ export type MatchDTO = {
   status: string;
   hasOpenPrediction: boolean;
   predictedChoice: "1" | "X" | "2" | null;
+  pulse: { total: number; home: number; draw: number; away: number };
 };

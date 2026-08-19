@@ -145,6 +145,70 @@ export async function getRecentActivity(userId: string, limit = 6): Promise<Acti
   return items.slice(0, limit);
 }
 
+export type CommunityPulse = {
+  total: number;
+  home: number;
+  draw: number;
+  away: number;
+};
+
+export async function getCommunityPulse(matchIds: string[]): Promise<Record<string, CommunityPulse>> {
+  if (matchIds.length === 0) return {};
+
+  const groups = await prisma.prediction.groupBy({
+    by: ["matchId", "choice"],
+    where: { matchId: { in: matchIds } },
+    _count: { _all: true },
+  });
+
+  const result: Record<string, CommunityPulse> = {};
+  for (const id of matchIds) result[id] = { total: 0, home: 0, draw: 0, away: 0 };
+
+  for (const g of groups) {
+    const bucket = result[g.matchId];
+    if (!bucket) continue;
+    bucket.total += g._count._all;
+    if (g.choice === "1") bucket.home += g._count._all;
+    else if (g.choice === "X") bucket.draw += g._count._all;
+    else if (g.choice === "2") bucket.away += g._count._all;
+  }
+
+  return result;
+}
+
+export type CommunityFeedItem = {
+  id: string;
+  displayName: string;
+  favoriteTeam: string | null;
+  choice: "1" | "X" | "2";
+  homeTeam: string;
+  awayTeam: string;
+  isYou: boolean;
+  at: Date;
+};
+
+export async function getCommunityFeed(currentUserId: string, limit = 15): Promise<CommunityFeedItem[]> {
+  const predictions = await prisma.prediction.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: {
+      match: { select: { homeTeam: true, awayTeam: true } },
+      user: { select: { displayName: true, favoriteTeam: true } },
+    },
+  });
+
+  return predictions.map((p) => ({
+    id: p.id,
+    displayName: p.user.displayName,
+    favoriteTeam: p.user.favoriteTeam,
+    choice: p.choice as "1" | "X" | "2",
+    homeTeam: p.match.homeTeam,
+    awayTeam: p.match.awayTeam,
+    isYou: p.userId === currentUserId,
+    at: p.createdAt,
+  }));
+}
+
 export async function getLeaderboard(currentUserId: string) {
   const users = await prisma.user.findMany({
     orderBy: { balance: "desc" },

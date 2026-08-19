@@ -1,6 +1,7 @@
 import TeamAvatar from "./TeamAvatar";
 import OddsButton from "./OddsButton";
 import Countdown from "./Countdown";
+import CommunityPulseBar from "./CommunityPulseBar";
 import { formatMatchDate, formatTime } from "@/lib/format";
 import type { MatchDTO } from "@/lib/types";
 
@@ -68,6 +69,8 @@ export default function MatchCard({
       {match.status === "finished" && (
         <p className="mt-3 text-center text-xs font-semibold text-ink-faint">Maç sonuçlandı</p>
       )}
+
+      <CommunityPulseBar pulse={match.pulse} />
     </div>
   );
 }

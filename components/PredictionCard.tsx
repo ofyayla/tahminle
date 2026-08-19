@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import TeamAvatar from "./TeamAvatar";
 import { formatMatchDate, formatOdds, formatTime, formatTL } from "@/lib/format";
 import type { PredictionDTO } from "@/lib/predictionTypes";
@@ -9,10 +12,14 @@ const CHOICE_LABEL: Record<string, (home: string, away: string) => string> = {
 };
 
 export default function PredictionCard({ prediction }: { prediction: PredictionDTO }) {
+  const [open, setOpen] = useState(false);
   const { match } = prediction;
   const kickoff = new Date(match.kickoff);
   const choiceText = CHOICE_LABEL[prediction.choice](match.homeTeam, match.awayTeam);
+  const resultText = match.result ? CHOICE_LABEL[match.result](match.homeTeam, match.awayTeam) : null;
   const potential = Math.round(prediction.stake * prediction.oddsAtPick);
+  const isSettled = prediction.status !== "open";
+  const walletEffect = prediction.status === "won" ? (prediction.payout ?? 0) : -prediction.stake;
 
   const statusMeta =
     prediction.status === "open"
@@ -78,6 +85,65 @@ export default function PredictionCard({ prediction }: { prediction: PredictionD
           </div>
         </div>
       </div>
+
+      {isSettled && (
+        <div className="mt-3 border-t border-card-border pt-3">
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="flex w-full items-center justify-center gap-1.5 text-xs font-bold text-ink-dim hover:text-ink"
+          >
+            Maç sonu detayını {open ? "kapat" : "aç"}
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`}
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+
+          {open && (
+            <div className="mt-3 space-y-2.5 rounded-xl bg-bg-elevated p-3.5">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-dim">Gerçek sonuç</span>
+                <span className="font-semibold">{resultText ?? "Bekleniyor"}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-dim">Senin tahminin</span>
+                <span className={`font-semibold ${prediction.status === "won" ? "text-green" : "text-red"}`}>
+                  {choiceText}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-dim">Maç tarihi</span>
+                <span className="font-semibold">{formatMatchDate(kickoff)} · {formatTime(kickoff)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-dim">Sonuçlanma tarihi</span>
+                <span className="font-semibold">
+                  {prediction.settledAt
+                    ? `${formatMatchDate(new Date(prediction.settledAt))} · ${formatTime(new Date(prediction.settledAt))}`
+                    : "-"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-t border-card-border pt-2.5 text-sm">
+                <span className="text-ink-dim">Sanal stake</span>
+                <span className="font-semibold">{formatTL(prediction.stake)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-dim">Cüzdan etkisi</span>
+                <span className={`font-display ${walletEffect >= 0 ? "text-green" : "text-red"}`}>
+                  {walletEffect >= 0 ? "+" : "−"}
+                  {formatTL(Math.abs(walletEffect))}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

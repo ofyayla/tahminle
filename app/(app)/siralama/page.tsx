@@ -1,13 +1,17 @@
 import { getCurrentUser } from "@/lib/auth";
-import { getLeaderboard } from "@/lib/data";
+import { getCommunityFeed, getLeaderboard } from "@/lib/data";
 import { formatTL } from "@/lib/format";
 import LeaderboardList from "@/components/LeaderboardList";
+import CommunityFeed from "@/components/CommunityFeed";
 
 export default async function SiralamaPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const { ranked, you, totalPlayers } = await getLeaderboard(user.id);
+  const [{ ranked, you, totalPlayers }, feed] = await Promise.all([
+    getLeaderboard(user.id),
+    getCommunityFeed(user.id),
+  ]);
 
   return (
     <div className="flex flex-col gap-5 px-4 pt-5">
@@ -36,6 +40,10 @@ export default async function SiralamaPage() {
 
       <section>
         <LeaderboardList rows={ranked} />
+      </section>
+
+      <section>
+        <CommunityFeed items={feed} />
       </section>
     </div>
   );
