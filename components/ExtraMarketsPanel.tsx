@@ -160,17 +160,32 @@ export default function ExtraMarketsPanel({
 
           {otherEntries.length > 0 && (
             <div>
-              <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-dim">Diğer Marketler</div>
-              <div className="max-h-48 space-y-1.5 overflow-y-auto rounded-lg border border-card-border bg-card p-2">
-                {otherEntries.map(([label, value]) => (
-                  <div key={label} className="flex items-center justify-between gap-2 text-xs">
-                    <span className="text-ink-dim">{label}</span>
-                    <span className="flex-shrink-0 font-display text-ink">{formatOdds(value)}</span>
-                  </div>
-                ))}
+              <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-dim">
+                Diğer Marketler ({otherEntries.length})
+              </div>
+              <div className="max-h-64 space-y-1.5 overflow-y-auto rounded-lg border border-card-border bg-card p-2">
+                {otherEntries.map(([label, value]) => {
+                  const selected = match.predictedMarket === "EXTRA" && match.predictedChoice === label;
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => onPick("EXTRA", label)}
+                      className={`flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors ${
+                        selected
+                          ? "border-gold bg-gold/10"
+                          : `border-transparent enabled:hover:border-card-border enabled:hover:bg-bg-elevated ${disabled ? "opacity-40" : ""}`
+                      }`}
+                    >
+                      <span className={selected ? "text-gold" : "text-ink-dim"}>{label}</span>
+                      <span className="flex-shrink-0 font-display text-ink">{formatOdds(value)}</span>
+                    </button>
+                  );
+                })}
               </div>
               <p className="mt-1.5 text-center text-[10px] text-ink-faint">
-                Bu marketler bilgi amaçlıdır — sadece yukarıdaki oranlarla tahmin kilitlenebilir.
+                Bu marketlerden birine dokunarak da tahminini kilitleyebilirsin.
               </p>
             </div>
           )}

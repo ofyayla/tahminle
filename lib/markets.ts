@@ -1,4 +1,4 @@
-export type MarketCode = "1X2" | "OU25" | "BTTS" | "DC";
+export type MarketCode = "1X2" | "OU25" | "BTTS" | "DC" | "EXTRA";
 
 export type MatchOddsSource = {
   homeTeam: string;
@@ -13,16 +13,21 @@ export type MatchOddsSource = {
   dc1X: number | null;
   dc12: number | null;
   dcX2: number | null;
+  extraMarkets?: Record<string, number> | null;
 };
 
-const VALID_CHOICES: Record<MarketCode, string[]> = {
+const VALID_CHOICES: Record<Exclude<MarketCode, "EXTRA">, string[]> = {
   "1X2": ["1", "X", "2"],
   OU25: ["OVER", "UNDER"],
   BTTS: ["YES", "NO"],
   DC: ["1X", "12", "X2"],
 };
 
+// EXTRA's "choice" is the raw label from the provider's extra_markets map
+// (e.g. "Maç Skoru (0:0)"), so it can't be checked against a fixed list —
+// callers validate it by confirming the label exists on the match instead.
 export function isValidChoice(market: MarketCode, choice: string): boolean {
+  if (market === "EXTRA") return choice.length > 0;
   return VALID_CHOICES[market]?.includes(choice) ?? false;
 }
 
@@ -46,6 +51,9 @@ export function getOddsFor(match: MatchOddsSource, market: MarketCode, choice: s
     if (choice === "1X") return match.dc1X;
     if (choice === "12") return match.dc12;
     if (choice === "X2") return match.dcX2;
+  }
+  if (market === "EXTRA") {
+    return match.extraMarkets?.[choice] ?? null;
   }
   return null;
 }
@@ -73,6 +81,7 @@ export function getChoiceLabel(
     if (choice === "12") return `Çifte Şans ${match.homeTeam} / ${match.awayTeam}`;
     if (choice === "X2") return `Çifte Şans Berabere / ${match.awayTeam}`;
   }
+  // EXTRA: the label itself already reads naturally, e.g. "Maç Skoru (0:0)".
   return choice;
 }
 
@@ -86,12 +95,16 @@ export function getMarketName(market: MarketCode): string {
       return "Karşılıklı Gol";
     case "DC":
       return "Çifte Şans";
+    case "EXTRA":
+      return "Diğer Market";
   }
 }
 
 // Human-readable label for what actually happened, for a given market, once a
 // match is settled. DC has no result of its own — it's decided by the 1X2
-// outcome, so that's what gets shown.
+// outcome, so that's what gets shown. EXTRA markets are each resolved by an
+// independent probability draw at settlement time (see lib/settlement.ts),
+// so there's no single "actual result" to surface here.
 export function getActualResultLabel(
   match: { homeTeam: string; awayTeam: string },
   market: MarketCode,
@@ -110,6 +123,7 @@ export function getActualResultLabel(
 }
 
 // Whether a settled match's simulated outcome satisfies this market + choice.
+// Not used for EXTRA — those settle independently, via their own locked-in odds.
 export function isWinningChoice(
   market: MarketCode,
   choice: string,

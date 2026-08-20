@@ -18,7 +18,7 @@ export default async function TahminlerPage() {
 
   const toDTO = (p: (typeof openRaw)[number]): PredictionDTO => ({
     id: p.id,
-    market: p.market as "1X2" | "OU25" | "BTTS" | "DC",
+    market: p.market as "1X2" | "OU25" | "BTTS" | "DC" | "EXTRA",
     choice: p.choice,
     stake: p.stake,
     oddsAtPick: p.oddsAtPick,

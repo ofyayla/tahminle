@@ -1,6 +1,6 @@
 export type PredictionDTO = {
   id: string;
-  market: "1X2" | "OU25" | "BTTS" | "DC";
+  market: "1X2" | "OU25" | "BTTS" | "DC" | "EXTRA";
   choice: string;
   stake: number;
   oddsAtPick: number;

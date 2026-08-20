@@ -6,8 +6,8 @@ import { getOddsFor, isValidChoice, type MarketCode } from "@/lib/markets";
 
 const schema = z.object({
   matchId: z.string(),
-  market: z.enum(["1X2", "OU25", "BTTS", "DC"]).default("1X2"),
-  choice: z.string(),
+  market: z.enum(["1X2", "OU25", "BTTS", "DC", "EXTRA"]).default("1X2"),
+  choice: z.string().min(1).max(200),
   stake: z.number().int().min(10).max(100000),
 });
 
@@ -37,7 +37,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Bu maç için tahmin süresi doldu." }, { status: 400 });
   }
 
-  const oddsAtPick = getOddsFor(match, market as MarketCode, choice);
+  const oddsAtPick = getOddsFor(
+    { ...match, extraMarkets: match.extraMarkets as Record<string, number> | null },
+    market as MarketCode,
+    choice
+  );
   if (oddsAtPick == null) {
     return NextResponse.json({ error: "Bu seçim için oran bulunamadı." }, { status: 400 });
   }

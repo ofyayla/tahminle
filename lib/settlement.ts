@@ -26,6 +26,15 @@ function pickBinary(oddsA: number, oddsB: number): boolean {
   return pickWeighted({ a: 1 / oddsA, b: 1 / oddsB }) === "a";
 }
 
+// EXTRA markets (correct score, first-half result, and the hundreds of other
+// one-off odds a provider might list) have no paired complementary selection
+// to draw against, so each is settled independently: its own locked-in odds
+// is treated as an implied win probability, same principle as every other
+// market here, just applied to a single outcome instead of a weighted set.
+function pickExtraWin(oddsAtPick: number): boolean {
+  return Math.random() < 1 / oddsAtPick;
+}
+
 export async function settleDueMatches() {
   const cutoff = new Date(Date.now() - SETTLE_AFTER_MS);
 
@@ -51,11 +60,14 @@ export async function settleDueMatches() {
           data: { status: "finished", result, resultOver25, resultBtts },
         }),
         ...match.predictions.map(async (pred) => {
-          const won = isWinningChoice(pred.market as MarketCode, pred.choice, {
-            result,
-            resultOver25,
-            resultBtts,
-          });
+          const won =
+            pred.market === "EXTRA"
+              ? pickExtraWin(pred.oddsAtPick)
+              : isWinningChoice(pred.market as MarketCode, pred.choice, {
+                  result,
+                  resultOver25,
+                  resultBtts,
+                });
           const payout = won ? Math.round(pred.stake * pred.oddsAtPick) : 0;
 
           await Promise.all([
