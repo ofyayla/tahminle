@@ -2,6 +2,7 @@ import TeamAvatar from "./TeamAvatar";
 import OddsButton from "./OddsButton";
 import Countdown from "./Countdown";
 import CommunityPulseBar from "./CommunityPulseBar";
+import ExtraMarketsPanel from "./ExtraMarketsPanel";
 import { formatMatchDate, formatTime } from "@/lib/format";
 import type { MatchDTO } from "@/lib/types";
 
@@ -70,6 +71,7 @@ export default function MatchCard({
         <p className="mt-3 text-center text-xs font-semibold text-ink-faint">Maç sonuçlandı</p>
       )}
 
+      <ExtraMarketsPanel extraOdds={match.extraOdds} />
       <CommunityPulseBar pulse={match.pulse} />
     </div>
   );

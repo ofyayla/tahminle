@@ -27,7 +27,20 @@ function normalizeTeamName(name: string): string {
   return name;
 }
 
-type BackendOdd = { bookmaker: string; home_win: number; draw: number; away_win: number };
+type BackendOdd = {
+  bookmaker: string;
+  home_win: number;
+  draw: number;
+  away_win: number;
+  over_2_5?: number | null;
+  under_2_5?: number | null;
+  btts_yes?: number | null;
+  btts_no?: number | null;
+  double_chance_1x?: number | null;
+  double_chance_12?: number | null;
+  double_chance_x2?: number | null;
+  extra_markets?: Record<string, number> | null;
+};
 type BackendMatch = {
   id: string;
   league: string;
@@ -48,6 +61,14 @@ export type BackendOddsMatch = {
   oddsHome: number;
   oddsDraw: number;
   oddsAway: number;
+  over25: number | null;
+  under25: number | null;
+  bttsYes: number | null;
+  bttsNo: number | null;
+  dc1X: number | null;
+  dc12: number | null;
+  dcX2: number | null;
+  extraMarkets: Record<string, number> | null;
 };
 
 export async function fetchOddsFromBackend(): Promise<BackendOddsMatch[]> {
@@ -79,6 +100,14 @@ export async function fetchOddsFromBackend(): Promise<BackendOddsMatch[]> {
         oddsHome: primary.home_win,
         oddsDraw: primary.draw,
         oddsAway: primary.away_win,
+        over25: primary.over_2_5 ?? null,
+        under25: primary.under_2_5 ?? null,
+        bttsYes: primary.btts_yes ?? null,
+        bttsNo: primary.btts_no ?? null,
+        dc1X: primary.double_chance_1x ?? null,
+        dc12: primary.double_chance_12 ?? null,
+        dcX2: primary.double_chance_x2 ?? null,
+        extraMarkets: primary.extra_markets ?? null,
       };
     })
     .filter((m): m is BackendOddsMatch => m !== null);

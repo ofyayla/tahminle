@@ -37,6 +37,17 @@ model Match {
   prevOddsHome  Float?
   prevOddsDraw  Float?
   prevOddsAway  Float?
+
+  // Extra markets beyond 1X2, when the odds provider supplies them.
+  over25    Float?
+  under25   Float?
+  bttsYes   Float?
+  bttsNo    Float?
+  dc1X      Float? // double chance 1-X
+  dc12      Float? // double chance 1-2
+  dcX2      Float? // double chance X-2
+  extraMarkets Json?
+
   oddsUpdatedAt DateTime @default(now())
   status        String   @default("upcoming") // upcoming | live | finished
   result        String? // "1" | "X" | "2"
