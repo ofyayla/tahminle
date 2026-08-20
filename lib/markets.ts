@@ -85,6 +85,14 @@ export function getChoiceLabel(
   return choice;
 }
 
+// Parses a "Maç Skoru (H:A)" label into its {home, away} goal counts.
+// Returns null for anything else — EXTRA only ever offers this one market now.
+export function parseScoreChoice(choice: string): { home: number; away: number } | null {
+  const m = choice.match(/\((\d+):(\d+)\)/);
+  if (!m) return null;
+  return { home: Number(m[1]), away: Number(m[2]) };
+}
+
 export function getMarketName(market: MarketCode): string {
   switch (market) {
     case "1X2":
@@ -96,19 +104,24 @@ export function getMarketName(market: MarketCode): string {
     case "DC":
       return "Çifte Şans";
     case "EXTRA":
-      return "Diğer Market";
+      return "Maç Skoru";
   }
 }
 
 // Human-readable label for what actually happened, for a given market, once a
 // match is settled. DC has no result of its own — it's decided by the 1X2
-// outcome, so that's what gets shown. EXTRA markets are each resolved by an
-// independent probability draw at settlement time (see lib/settlement.ts),
-// so there's no single "actual result" to surface here.
+// outcome, so that's what gets shown. EXTRA (Maç Skoru) shows the real final
+// score when one was available, or "Gerçek skor alınamadı" otherwise.
 export function getActualResultLabel(
   match: { homeTeam: string; awayTeam: string },
   market: MarketCode,
-  result: { result: string | null; resultOver25: boolean | null; resultBtts: boolean | null }
+  result: {
+    result: string | null;
+    resultOver25: boolean | null;
+    resultBtts: boolean | null;
+    homeScore?: number | null;
+    awayScore?: number | null;
+  }
 ): string | null {
   if (market === "1X2" || market === "DC") {
     return result.result ? getChoiceLabel(match, "1X2", result.result) : null;
@@ -118,6 +131,10 @@ export function getActualResultLabel(
   }
   if (market === "BTTS") {
     return result.resultBtts == null ? null : getChoiceLabel(match, "BTTS", result.resultBtts ? "YES" : "NO");
+  }
+  if (market === "EXTRA") {
+    if (result.homeScore == null || result.awayScore == null) return "Gerçek skor alınamadı";
+    return `Maç Skoru (${result.homeScore}:${result.awayScore})`;
   }
   return null;
 }

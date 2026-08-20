@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { isWinningChoice, type MarketCode } from "./markets";
+import { isWinningChoice, parseScoreChoice, type MarketCode } from "./markets";
 import { fetchRealResults, findRealResult } from "./resultsBackend";
 
 // If no real result is available by this long after kickoff, fall back to an
@@ -27,16 +27,13 @@ function pickBinary(oddsA: number, oddsB: number): boolean {
   return pickWeighted({ a: 1 / oddsA, b: 1 / oddsB }) === "a";
 }
 
-// EXTRA markets (correct score, first-half result, and the hundreds of other
-// one-off odds a provider might list) have no paired complementary selection
-// to draw against, so each is settled independently: its own locked-in odds
-// is treated as an implied win probability, same principle as every other
-// market here, just applied to a single outcome instead of a weighted set.
-function pickExtraWin(oddsAtPick: number): boolean {
-  return Math.random() < 1 / oddsAtPick;
-}
-
-type MatchResultOutcome = { result: "1" | "X" | "2"; resultOver25: boolean | null; resultBtts: boolean | null };
+type MatchResultOutcome = {
+  result: "1" | "X" | "2";
+  resultOver25: boolean | null;
+  resultBtts: boolean | null;
+  homeScore: number | null;
+  awayScore: number | null;
+};
 
 function simulateOutcome(match: {
   oddsHome: number;
@@ -52,6 +49,9 @@ function simulateOutcome(match: {
     resultOver25:
       match.over25 != null && match.under25 != null ? pickBinary(match.over25, match.under25) : null,
     resultBtts: match.bttsYes != null && match.bttsNo != null ? pickBinary(match.bttsYes, match.bttsNo) : null,
+    // No real scoreline to fall back on — Maç Skoru (EXTRA) predictions lose by default in this case.
+    homeScore: null,
+    awayScore: null,
   };
 }
 
@@ -89,6 +89,8 @@ export async function settleDueMatches() {
           resultOver25: total != null ? total > 2.5 : null,
           resultBtts:
             real.homeScore != null && real.awayScore != null ? real.homeScore > 0 && real.awayScore > 0 : null,
+          homeScore: real.homeScore,
+          awayScore: real.awayScore,
         },
       });
       continue;
@@ -101,21 +103,23 @@ export async function settleDueMatches() {
   }
 
   await Promise.all(
-    toSettle.map(async ({ match, outcome: { result, resultOver25, resultBtts } }) => {
+    toSettle.map(async ({ match, outcome }) => {
+      const { result, resultOver25, resultBtts, homeScore, awayScore } = outcome;
+
       await Promise.all([
         prisma.match.update({
           where: { id: match.id },
-          data: { status: "finished", result, resultOver25, resultBtts },
+          data: { status: "finished", result, resultOver25, resultBtts, homeScore, awayScore },
         }),
         ...match.predictions.map(async (pred) => {
-          const won =
-            pred.market === "EXTRA"
-              ? pickExtraWin(pred.oddsAtPick)
-              : isWinningChoice(pred.market as MarketCode, pred.choice, {
-                  result,
-                  resultOver25,
-                  resultBtts,
-                });
+          let won: boolean;
+          if (pred.market === "EXTRA") {
+            // Maç Skoru: only ever wins against a confirmed real scoreline.
+            const guess = parseScoreChoice(pred.choice);
+            won = !!guess && homeScore != null && awayScore != null && guess.home === homeScore && guess.away === awayScore;
+          } else {
+            won = isWinningChoice(pred.market as MarketCode, pred.choice, { result, resultOver25, resultBtts });
+          }
           const payout = won ? Math.round(pred.stake * pred.oddsAtPick) : 0;
 
           await Promise.all([

@@ -34,6 +34,8 @@ export default async function TahminlerPage() {
       result: p.match.result,
       resultOver25: p.match.resultOver25,
       resultBtts: p.match.resultBtts,
+      homeScore: p.match.homeScore,
+      awayScore: p.match.awayScore,
     },
   });
 

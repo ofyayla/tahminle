@@ -5,18 +5,7 @@ import { formatOdds } from "@/lib/format";
 import type { MarketCode } from "@/lib/markets";
 import type { MatchDTO } from "@/lib/types";
 
-const KNOWN_LABEL_PATTERNS = [
-  "1x2",
-  "maç sonucu",
-  "2.5 gol",
-  "karşılıklı gol",
-  "çifte şans",
-];
-
-function isKnownMarket(label: string): boolean {
-  const lower = label.toLowerCase();
-  return KNOWN_LABEL_PATTERNS.some((p) => lower.includes(p));
-}
+const SCORE_LABEL_PATTERN = /^Maç Skoru \(\d+:\d+\)$/;
 
 function MarketRow({
   title,
@@ -86,11 +75,17 @@ export default function ExtraMarketsPanel({
     extraOdds.dcX2,
   ].filter((v) => v != null).length;
 
-  const otherEntries = extraOdds.extraMarkets
-    ? Object.entries(extraOdds.extraMarkets).filter(([label]) => !isKnownMarket(label))
+  // Only the plain "Maç Skoru (H:A)" market is offered — it's the one market
+  // we can settle against a real final score. Everything else the provider
+  // lists (İlk Yarı Skoru, Maç Sonucu ve Toplam Gol, …) has no fair way to
+  // resolve without a live score feed, so it isn't shown.
+  const scoreEntries = extraOdds.extraMarkets
+    ? Object.entries(extraOdds.extraMarkets)
+        .filter(([label]) => SCORE_LABEL_PATTERN.test(label))
+        .sort(([, a], [, b]) => a - b)
     : [];
 
-  const totalCount = structuredCount + otherEntries.length;
+  const totalCount = structuredCount + scoreEntries.length;
   if (totalCount === 0) return null;
 
   const selectedFor = (market: MarketCode) =>
@@ -158,13 +153,13 @@ export default function ExtraMarketsPanel({
             ]}
           />
 
-          {otherEntries.length > 0 && (
+          {scoreEntries.length > 0 && (
             <div>
               <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-dim">
-                Diğer Marketler ({otherEntries.length})
+                Maç Skoru ({scoreEntries.length})
               </div>
               <div className="max-h-64 space-y-1.5 overflow-y-auto rounded-lg border border-card-border bg-card p-2">
-                {otherEntries.map(([label, value]) => {
+                {scoreEntries.map(([label, value]) => {
                   const selected = match.predictedMarket === "EXTRA" && match.predictedChoice === label;
                   return (
                     <button
@@ -185,7 +180,7 @@ export default function ExtraMarketsPanel({
                 })}
               </div>
               <p className="mt-1.5 text-center text-[10px] text-ink-faint">
-                Bu marketlerden birine dokunarak da tahminini kilitleyebilirsin.
+                Maç skoru tahminleri gerçek maç sonucuyla eşleşerek sonuçlanır.
               </p>
             </div>
           )}

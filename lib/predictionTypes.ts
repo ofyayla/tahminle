@@ -16,5 +16,7 @@ export type PredictionDTO = {
     result: string | null;
     resultOver25: boolean | null;
     resultBtts: boolean | null;
+    homeScore: number | null;
+    awayScore: number | null;
   };
 };
