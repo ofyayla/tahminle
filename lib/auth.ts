@@ -1,5 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { prisma } from "./prisma";
 
 const COOKIE_NAME = "tahminle_session";
@@ -7,12 +7,19 @@ const secret = new TextEncoder().encode(
   process.env.AUTH_SECRET ?? "dev-secret-change-me-tahminle-app-2026"
 );
 
-export async function createSession(userId: string) {
-  const token = await new SignJWT({ userId })
+// Native clients (Expo app) have no cookie jar tied to this origin, so they
+// authenticate with `Authorization: Bearer <token>` instead. The token is the
+// same signed JWT the web session cookie carries.
+async function signSessionToken(userId: string) {
+  return new SignJWT({ userId })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("30d")
     .sign(secret);
+}
+
+export async function createSession(userId: string) {
+  const token = await signSessionToken(userId);
 
   const store = await cookies();
   store.set(COOKIE_NAME, token, {
@@ -22,6 +29,8 @@ export async function createSession(userId: string) {
     path: "/",
     maxAge: 60 * 60 * 24 * 30,
   });
+
+  return token;
 }
 
 export async function clearSession() {
@@ -31,7 +40,16 @@ export async function clearSession() {
 
 export async function getSessionUserId(): Promise<string | null> {
   const store = await cookies();
-  const token = store.get(COOKIE_NAME)?.value;
+  let token = store.get(COOKIE_NAME)?.value;
+
+  if (!token) {
+    const headerList = await headers();
+    const auth = headerList.get("authorization");
+    if (auth?.startsWith("Bearer ")) {
+      token = auth.slice("Bearer ".length);
+    }
+  }
+
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secret);

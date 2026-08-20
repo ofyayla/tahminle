@@ -1,0 +1,58 @@
+import { NextResponse } from "next/server";
+import { getSessionUserId } from "@/lib/auth";
+import { getCommunityPulse, getUpcomingMatches, getWalletSummary } from "@/lib/data";
+import { prisma } from "@/lib/prisma";
+import type { MatchDTO } from "@/lib/types";
+
+export async function GET() {
+  const userId = await getSessionUserId();
+  if (!userId) {
+    return NextResponse.json({ error: "Giriş yapmalısın." }, { status: 401 });
+  }
+
+  const [matches, wallet, openPredictions] = await Promise.all([
+    getUpcomingMatches(),
+    getWalletSummary(userId),
+    prisma.prediction.findMany({
+      where: { userId, status: "open" },
+      select: { matchId: true, market: true, choice: true },
+    }),
+  ]);
+
+  const openByMatchId = new Map<string, Record<string, string>>();
+  for (const p of openPredictions) {
+    const bucket = openByMatchId.get(p.matchId) ?? {};
+    bucket[p.market] = p.choice;
+    openByMatchId.set(p.matchId, bucket);
+  }
+  const pulseByMatchId = await getCommunityPulse(matches.map((m) => m.id));
+
+  const matchDTOs: MatchDTO[] = matches.map((m) => ({
+    id: m.id,
+    homeTeam: m.homeTeam,
+    awayTeam: m.awayTeam,
+    league: m.league,
+    kickoff: m.kickoff.toISOString(),
+    oddsHome: m.oddsHome,
+    oddsDraw: m.oddsDraw,
+    oddsAway: m.oddsAway,
+    prevOddsHome: m.prevOddsHome,
+    prevOddsDraw: m.prevOddsDraw,
+    prevOddsAway: m.prevOddsAway,
+    extraOdds: {
+      over25: m.over25,
+      under25: m.under25,
+      bttsYes: m.bttsYes,
+      bttsNo: m.bttsNo,
+      dc1X: m.dc1X,
+      dc12: m.dc12,
+      dcX2: m.dcX2,
+      extraMarkets: (m.extraMarkets as Record<string, number> | null) ?? null,
+    },
+    status: m.status,
+    openByMarket: openByMatchId.get(m.id) ?? {},
+    pulse: pulseByMatchId[m.id] ?? { total: 0, home: 0, draw: 0, away: 0 },
+  }));
+
+  return NextResponse.json({ matches: matchDTOs, available: wallet.available });
+}

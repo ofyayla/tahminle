@@ -3,6 +3,52 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth";
 import { getOddsFor, isValidChoice, type MarketCode } from "@/lib/markets";
+import { getPerformanceStats, getPredictions, syncMatchState } from "@/lib/data";
+import type { PredictionDTO } from "@/lib/predictionTypes";
+
+export async function GET() {
+  const userId = await getSessionUserId();
+  if (!userId) {
+    return NextResponse.json({ error: "Giriş yapmalısın." }, { status: 401 });
+  }
+
+  await syncMatchState();
+
+  const [openRaw, settledRaw, stats] = await Promise.all([
+    getPredictions(userId, "open"),
+    getPredictions(userId, "settled"),
+    getPerformanceStats(userId),
+  ]);
+
+  const toDTO = (p: (typeof openRaw)[number]): PredictionDTO => ({
+    id: p.id,
+    market: p.market as PredictionDTO["market"],
+    choice: p.choice,
+    stake: p.stake,
+    oddsAtPick: p.oddsAtPick,
+    status: p.status as PredictionDTO["status"],
+    payout: p.payout,
+    createdAt: p.createdAt.toISOString(),
+    settledAt: p.settledAt ? p.settledAt.toISOString() : null,
+    match: {
+      homeTeam: p.match.homeTeam,
+      awayTeam: p.match.awayTeam,
+      kickoff: p.match.kickoff.toISOString(),
+      status: p.match.status,
+      result: p.match.result,
+      resultOver25: p.match.resultOver25,
+      resultBtts: p.match.resultBtts,
+      homeScore: p.match.homeScore,
+      awayScore: p.match.awayScore,
+    },
+  });
+
+  return NextResponse.json({
+    open: openRaw.map(toDTO),
+    settled: settledRaw.map(toDTO),
+    stats,
+  });
+}
 
 const schema = z.object({
   matchId: z.string(),

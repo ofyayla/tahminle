@@ -43,7 +43,11 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  await createSession(user.id);
+  const token = await createSession(user.id);
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    token,
+    user: { id: user.id, email: user.email, displayName: user.displayName },
+  });
 }

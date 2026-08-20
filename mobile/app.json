@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Tahminle",
+    "slug": "tahminle",
+    "scheme": "tahminle",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0a0d16",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tahminle.app"
+    },
+    "android": {
+      "package": "com.tahminle.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0a0d16",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font"
+    ]
+  }
+}
