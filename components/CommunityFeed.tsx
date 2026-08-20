@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
 import { getChoiceLabel } from "@/lib/markets";
+import { formatTL } from "@/lib/format";
 import type { CommunityFeedItem } from "@/lib/data";
 
 function timeAgo(date: Date): string {
@@ -33,7 +34,7 @@ export default function CommunityFeed({ items }: { items: CommunityFeedItem[] })
             const choiceText = getChoiceLabel(item, item.market, item.choice);
 
             return (
-              <div key={item.id} className="flex items-center gap-3 px-4 py-3.5">
+              <div key={item.id} className="flex gap-3 px-4 py-3.5">
                 <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-bg-elevated">
                   {meta ? (
                     <Image src={meta.logo} alt={meta.name} width={36} height={36} className="h-full w-full object-cover" />
@@ -44,18 +45,19 @@ export default function CommunityFeed({ items }: { items: CommunityFeedItem[] })
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm">
-                    <span className="font-bold">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-bold">
                       {item.displayName} {item.isYou && <span className="text-gold">(Sen)</span>}
-                    </span>{" "}
-                    <span className="text-ink-dim">
-                      {item.homeTeam} – {item.awayTeam} maçında
                     </span>
+                    <span className="flex-shrink-0 text-[11px] text-ink-faint">{timeAgo(item.at)}</span>
                   </div>
-                  <div className="text-[11px] text-ink-faint">{timeAgo(item.at)}</div>
-                </div>
-                <div className="flex-shrink-0 rounded-full bg-gold/15 px-2.5 py-1 text-xs font-bold text-gold">
-                  {choiceText}
+                  <div className="mt-0.5 text-sm text-ink-dim">{item.homeTeam} – {item.awayTeam}</div>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="rounded-full bg-gold/15 px-2.5 py-1 text-xs font-bold text-gold">
+                      {choiceText}
+                    </span>
+                    <span className="flex-shrink-0 font-display text-sm text-ink">{formatTL(item.stake)}</span>
+                  </div>
                 </div>
               </div>
             );

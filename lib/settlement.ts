@@ -1,10 +1,15 @@
 import { prisma } from "./prisma";
 import { isWinningChoice, parseScoreChoice, type MarketCode } from "./markets";
 import { fetchRealResults, findRealResult } from "./resultsBackend";
+import { isCurrentlySourced } from "./scraper";
 
 // If no real result is available by this long after kickoff, fall back to an
 // odds-implied simulation rather than leaving predictions stuck open forever.
+// A match the odds source has stopped listing entirely (an orphan — usually
+// a competition our results provider doesn't cover) gets a much shorter
+// grace period, since we already know no real result is ever coming.
 const SIMULATION_FALLBACK_MS = 115 * 60 * 1000;
+const ORPHAN_FALLBACK_MS = 20 * 60 * 1000;
 
 function pickWeighted(weights: Record<string, number>): string {
   const entries = Object.entries(weights);
@@ -97,7 +102,10 @@ export async function settleDueMatches() {
       continue;
     }
 
-    if (now - match.kickoff.getTime() > SIMULATION_FALLBACK_MS) {
+    const elapsed = now - match.kickoff.getTime();
+    const fallbackWindow = isCurrentlySourced(match.externalId) ? SIMULATION_FALLBACK_MS : ORPHAN_FALLBACK_MS;
+
+    if (elapsed > fallbackWindow) {
       toSettle.push({ match, outcome: simulateOutcome(match) });
       continue;
     }

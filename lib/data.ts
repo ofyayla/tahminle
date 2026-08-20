@@ -182,6 +182,7 @@ export type CommunityFeedItem = {
   favoriteTeam: string | null;
   market: "1X2" | "OU25" | "BTTS" | "DC" | "EXTRA";
   choice: string;
+  stake: number;
   homeTeam: string;
   awayTeam: string;
   isYou: boolean;
@@ -204,6 +205,7 @@ export async function getCommunityFeed(currentUserId: string, limit = 15): Promi
     favoriteTeam: p.user.favoriteTeam,
     market: p.market as "1X2" | "OU25" | "BTTS" | "DC" | "EXTRA",
     choice: p.choice,
+    stake: p.stake,
     homeTeam: p.match.homeTeam,
     awayTeam: p.match.awayTeam,
     isYou: p.userId === currentUserId,
