@@ -52,6 +52,9 @@ export default async function MacGunuPage() {
       extraMarkets: (m.extraMarkets as Record<string, number> | null) ?? null,
     },
     status: m.status,
+    liveScore: m.status === "live" && m.homeScore != null && m.awayScore != null
+      ? { home: m.homeScore, away: m.awayScore }
+      : null,
     openByMarket: openByMatchId.get(m.id) ?? {},
     pulse: pulseByMatchId[m.id] ?? { total: 0, home: 0, draw: 0, away: 0 },
   }));

@@ -76,6 +76,7 @@ export async function settleDueMatches() {
   }
 
   const toSettle: { match: (typeof startedMatches)[number]; outcome: MatchResultOutcome }[] = [];
+  const liveScoreUpdates: { matchId: string; homeScore: number; awayScore: number }[] = [];
 
   for (const match of startedMatches) {
     const real = findRealResult(match, realResults);
@@ -98,8 +99,25 @@ export async function settleDueMatches() {
 
     if (now - match.kickoff.getTime() > SIMULATION_FALLBACK_MS) {
       toSettle.push({ match, outcome: simulateOutcome(match) });
+      continue;
     }
-    // Otherwise: likely still in progress and no real result yet — leave open.
+
+    // Still in progress: if the provider already exposes an in-play score,
+    // surface it as "canlı skor" without settling anything yet.
+    if (real && real.homeScore != null && real.awayScore != null) {
+      liveScoreUpdates.push({ matchId: match.id, homeScore: real.homeScore, awayScore: real.awayScore });
+    }
+  }
+
+  if (liveScoreUpdates.length > 0) {
+    await Promise.all(
+      liveScoreUpdates.map((u) =>
+        prisma.match.update({
+          where: { id: u.matchId },
+          data: { homeScore: u.homeScore, awayScore: u.awayScore },
+        })
+      )
+    );
   }
 
   await Promise.all(

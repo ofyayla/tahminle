@@ -1,6 +1,7 @@
 import TeamAvatar from "./TeamAvatar";
 import OddsButton from "./OddsButton";
 import Countdown from "./Countdown";
+import LiveMinute from "./LiveMinute";
 import CommunityPulseBar from "./CommunityPulseBar";
 import ExtraMarketsPanel from "./ExtraMarketsPanel";
 import { formatMatchDate, formatTime } from "@/lib/format";
@@ -17,9 +18,12 @@ export default function MatchCard({
   onPick: (market: MarketCode, choice: string) => void;
 }) {
   const kickoff = new Date(match.kickoff);
-  const matchClosed = match.status === "finished";
+  const isLive = match.status === "live";
+  const isFinished = match.status === "finished";
+  // Betting closes the moment a match kicks off — only "upcoming" matches are pickable.
+  const bettingClosed = match.status !== "upcoming";
   const choice1X2 = match.openByMarket["1X2"];
-  const disabled1X2 = matchClosed || choice1X2 != null;
+  const disabled1X2 = bettingClosed || choice1X2 != null;
 
   const openEntries = Object.entries(match.openByMarket);
 
@@ -32,13 +36,20 @@ export default function MatchCard({
       {featured && <div className="absolute left-0 top-0 h-full w-1 bg-gold" />}
       <div className="mb-3 flex items-center justify-between text-[11px] font-semibold">
         <span className="flex items-center gap-1.5 text-ink-dim">
-          <span className={`h-1.5 w-1.5 rounded-full ${match.status === "live" ? "bg-red animate-pulse" : "bg-green"}`} />
+          <span className={`h-1.5 w-1.5 rounded-full ${isLive ? "bg-red animate-pulse" : "bg-green"}`} />
           {featured ? "SIRADAKI BÜYÜK MAÇ" : match.league ?? "Süper Lig"}
         </span>
-        <span className="flex items-center gap-1 text-gold">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5"><circle cx="12" cy="12" r="9" /><path d="M12 8v4l3 2" /></svg>
-          <Countdown kickoff={match.kickoff} />
-        </span>
+        {isLive ? (
+          <span className="flex items-center gap-1 text-red">
+            <span className="h-1.5 w-1.5 rounded-full bg-red animate-pulse" />
+            CANLI · <LiveMinute kickoff={match.kickoff} />
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-gold">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5"><circle cx="12" cy="12" r="9" /><path d="M12 8v4l3 2" /></svg>
+            <Countdown kickoff={match.kickoff} />
+          </span>
+        )}
       </div>
 
       <div className="mb-3 flex items-center justify-between">
@@ -47,7 +58,13 @@ export default function MatchCard({
           <span className="text-center text-sm font-bold">{match.homeTeam}</span>
         </div>
         <div className="flex flex-col items-center px-2 text-ink-faint">
-          <span className="font-display text-sm">VS</span>
+          {match.liveScore ? (
+            <span className="font-display text-lg text-ink">
+              {match.liveScore.home}-{match.liveScore.away}
+            </span>
+          ) : (
+            <span className="font-display text-sm">VS</span>
+          )}
           <span className="mt-1 text-xs">{formatTime(kickoff)}</span>
         </div>
         <div className="flex flex-1 flex-col items-center gap-2">
@@ -76,11 +93,14 @@ export default function MatchCard({
           ))}
         </div>
       )}
-      {matchClosed && (
+      {isLive && (
+        <p className="mt-3 text-center text-xs font-semibold text-ink-faint">Maç başladı — tahmin kilitlendi</p>
+      )}
+      {isFinished && (
         <p className="mt-3 text-center text-xs font-semibold text-ink-faint">Maç sonuçlandı</p>
       )}
 
-      <ExtraMarketsPanel match={match} matchClosed={matchClosed} onPick={onPick} />
+      <ExtraMarketsPanel match={match} matchClosed={bettingClosed} onPick={onPick} />
       <CommunityPulseBar pulse={match.pulse} />
     </div>
   );

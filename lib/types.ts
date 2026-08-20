@@ -21,6 +21,7 @@ export type MatchDTO = {
     extraMarkets: Record<string, number> | null;
   };
   status: string;
+  liveScore: { home: number; away: number } | null;
   // Keyed by market ("1X2" | "OU25" | "BTTS" | "DC" | "EXTRA") — a user can
   // hold at most one open prediction per market per match, but different
   // markets on the same match are independent of each other.

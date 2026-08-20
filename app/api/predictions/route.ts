@@ -79,8 +79,11 @@ export async function POST(req: NextRequest) {
   if (!match) {
     return NextResponse.json({ error: "Maç bulunamadı." }, { status: 404 });
   }
-  if (match.status === "finished") {
-    return NextResponse.json({ error: "Bu maç için tahmin süresi doldu." }, { status: 400 });
+  if (match.status !== "upcoming") {
+    return NextResponse.json(
+      { error: "Bu maç başladı, artık tahmin yapılamaz." },
+      { status: 400 }
+    );
   }
 
   const oddsAtPick = getOddsFor(
