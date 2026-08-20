@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import BrandLogo from "@/components/BrandLogo";
 
 const TEAMS = [
   { code: "GS", name: "Galatasaray", color: "#F5A623" },
@@ -45,7 +46,7 @@ export default function RegisterPage() {
     <main className="flex min-h-screen items-center justify-center px-5 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gold text-bg font-display text-lg">T</div>
+          <BrandLogo className="mx-auto mb-3" />
           <h1 className="font-display text-2xl tracking-tight">HESAP AÇ</h1>
           <p className="mt-2 text-sm text-ink-dim">₺1.000 sanal bakiye ile maç günü başlasın.</p>
         </div>

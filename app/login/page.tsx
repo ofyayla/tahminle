@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import BrandLogo from "@/components/BrandLogo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,8 +38,7 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center px-5 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gold text-bg font-display text-lg">T</div>
-          <h1 className="font-display text-2xl tracking-tight">TAHMİNLE</h1>
+          <BrandLogo className="mx-auto mb-3" />
           <p className="mt-2 text-sm text-ink-dim">Maç Günü Kontrol Odası&apos;na giriş yap.</p>
         </div>
 

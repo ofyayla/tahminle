@@ -4,14 +4,13 @@ import { getClubLogo } from "@/lib/clubLogos";
 
 export default function TeamAvatar({ name, size = 48 }: { name: string; size?: number }) {
   const code = teamCodeFromName(name);
-  const ringColor = code ? TEAM_META[code].color : "#616a80";
   const logo = code ? TEAM_META[code].logo : getClubLogo(name);
 
   if (logo) {
     return (
       <div
-        style={{ width: size, height: size, borderColor: ringColor }}
-        className="flex items-center justify-center overflow-hidden rounded-full border-2 bg-bg-elevated"
+        style={{ width: size, height: size }}
+        className="flex items-center justify-center overflow-hidden rounded-full"
       >
         <Image
           src={logo}

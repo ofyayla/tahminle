@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getCommunityPulse, getLeaderboard, getUpcomingMatches, getWalletSummary } from "@/lib/data";
 import { formatTL, formatTime } from "@/lib/format";
 import MatchBoard from "@/components/MatchBoard";
+import BrandLogo from "@/components/BrandLogo";
 import type { MatchDTO } from "@/lib/types";
 import { prisma } from "@/lib/prisma";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
@@ -95,10 +96,7 @@ export default async function MacGunuPage() {
         )}
 
         <div className="relative flex items-start justify-between">
-          <div className="flex items-center gap-2 rounded-full border border-card-border bg-black/30 px-3 py-1.5 text-[11px] font-semibold text-ink-dim">
-            <span className="h-1.5 w-1.5 rounded-full bg-green" />
-            Veri güncellendi: {formatTime(new Date())}
-          </div>
+          <BrandLogo width={110} />
           {favMeta ? (
             <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full">
               <Image src={favMeta.logo} alt={favMeta.name} width={64} height={64} className="h-full w-full object-contain" />
@@ -180,6 +178,11 @@ export default async function MacGunuPage() {
         <p className="mb-3 text-sm text-ink-dim">Kulübünün maçını seç, sanal tahminini kur.</p>
         <MatchBoard matches={matchDTOs} available={wallet.available} />
       </section>
+
+      <div className="mx-auto flex items-center gap-2 rounded-full border border-card-border bg-card px-3 py-1.5 text-[11px] font-semibold text-ink-dim">
+        <span className="h-1.5 w-1.5 rounded-full bg-green" />
+        Veri güncellendi: {formatTime(new Date())}
+      </div>
     </div>
   );
 }
