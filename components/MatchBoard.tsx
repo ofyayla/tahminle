@@ -3,10 +3,11 @@
 import { useState } from "react";
 import MatchCard from "./MatchCard";
 import PredictionSheet from "./PredictionSheet";
+import { getOddsFor, type MarketCode } from "@/lib/markets";
 import type { MatchDTO } from "@/lib/types";
 
 export default function MatchBoard({ matches, available }: { matches: MatchDTO[]; available: number }) {
-  const [selection, setSelection] = useState<{ match: MatchDTO; choice: "1" | "X" | "2" } | null>(null);
+  const [selection, setSelection] = useState<{ match: MatchDTO; market: MarketCode; choice: string } | null>(null);
 
   if (matches.length === 0) {
     return (
@@ -16,19 +17,29 @@ export default function MatchBoard({ matches, available }: { matches: MatchDTO[]
     );
   }
 
-  const odds = (m: MatchDTO, c: "1" | "X" | "2") => (c === "1" ? m.oddsHome : c === "X" ? m.oddsDraw : m.oddsAway);
-
   return (
     <div className="space-y-3">
       {matches.map((m, i) => (
-        <MatchCard key={m.id} match={m} featured={i === 0} onPick={(choice) => setSelection({ match: m, choice })} />
+        <MatchCard
+          key={m.id}
+          match={m}
+          featured={i === 0}
+          onPick={(market, choice) => setSelection({ match: m, market, choice })}
+        />
       ))}
 
       {selection && (
         <PredictionSheet
           match={selection.match}
+          market={selection.market}
           choice={selection.choice}
-          odds={odds(selection.match, selection.choice)}
+          odds={
+            getOddsFor(
+              { ...selection.match, ...selection.match.extraOdds },
+              selection.market,
+              selection.choice
+            ) ?? 0
+          }
           available={available}
           onClose={() => setSelection(null)}
         />

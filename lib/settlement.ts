@@ -1,18 +1,29 @@
 import { prisma } from "./prisma";
+import { isWinningChoice, type MarketCode } from "./markets";
 
 // Matches with no live-score feed are settled after this grace period post-kickoff,
-// using an odds-implied probability draw as a stand-in for the real result.
+// using odds-implied probability draws as a stand-in for the real result.
 const SETTLE_AFTER_MS = 115 * 60 * 1000;
 
-function pickWeightedOutcome(oddsHome: number, oddsDraw: number, oddsAway: number) {
-  const wHome = 1 / oddsHome;
-  const wDraw = 1 / oddsDraw;
-  const wAway = 1 / oddsAway;
-  const total = wHome + wDraw + wAway;
-  const r = Math.random() * total;
-  if (r < wHome) return "1";
-  if (r < wHome + wDraw) return "X";
-  return "2";
+function pickWeighted(weights: Record<string, number>): string {
+  const entries = Object.entries(weights);
+  const total = entries.reduce((sum, [, w]) => sum + w, 0);
+  let r = Math.random() * total;
+  for (const [key, w] of entries) {
+    if (r < w) return key;
+    r -= w;
+  }
+  return entries[entries.length - 1][0];
+}
+
+function pickOutcome1X2(oddsHome: number, oddsDraw: number, oddsAway: number): "1" | "X" | "2" {
+  return pickWeighted({ "1": 1 / oddsHome, X: 1 / oddsDraw, "2": 1 / oddsAway }) as "1" | "X" | "2";
+}
+
+// A binary market (over/under, btts) simulated from its own implied
+// probabilities — independent of the 1X2 result, same as a real match would be.
+function pickBinary(oddsA: number, oddsB: number): boolean {
+  return pickWeighted({ a: 1 / oddsA, b: 1 / oddsB }) === "a";
 }
 
 export async function settleDueMatches() {
@@ -28,15 +39,23 @@ export async function settleDueMatches() {
 
   await Promise.all(
     dueMatches.map(async (match) => {
-      const result = pickWeightedOutcome(match.oddsHome, match.oddsDraw, match.oddsAway);
+      const result = pickOutcome1X2(match.oddsHome, match.oddsDraw, match.oddsAway);
+      const resultOver25 =
+        match.over25 != null && match.under25 != null ? pickBinary(match.over25, match.under25) : null;
+      const resultBtts =
+        match.bttsYes != null && match.bttsNo != null ? pickBinary(match.bttsYes, match.bttsNo) : null;
 
       await Promise.all([
         prisma.match.update({
           where: { id: match.id },
-          data: { status: "finished", result },
+          data: { status: "finished", result, resultOver25, resultBtts },
         }),
         ...match.predictions.map(async (pred) => {
-          const won = pred.choice === result;
+          const won = isWinningChoice(pred.market as MarketCode, pred.choice, {
+            result,
+            resultOver25,
+            resultBtts,
+          });
           const payout = won ? Math.round(pred.stake * pred.oddsAtPick) : 0;
 
           await Promise.all([

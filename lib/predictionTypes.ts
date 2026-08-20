@@ -1,6 +1,7 @@
 export type PredictionDTO = {
   id: string;
-  choice: "1" | "X" | "2";
+  market: "1X2" | "OU25" | "BTTS" | "DC";
+  choice: string;
   stake: number;
   oddsAtPick: number;
   status: "open" | "won" | "lost";
@@ -13,5 +14,7 @@ export type PredictionDTO = {
     kickoff: string;
     status: string;
     result: string | null;
+    resultOver25: boolean | null;
+    resultBtts: boolean | null;
   };
 };

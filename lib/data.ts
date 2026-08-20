@@ -157,7 +157,7 @@ export async function getCommunityPulse(matchIds: string[]): Promise<Record<stri
 
   const groups = await prisma.prediction.groupBy({
     by: ["matchId", "choice"],
-    where: { matchId: { in: matchIds } },
+    where: { matchId: { in: matchIds }, market: "1X2" },
     _count: { _all: true },
   });
 
@@ -180,7 +180,8 @@ export type CommunityFeedItem = {
   id: string;
   displayName: string;
   favoriteTeam: string | null;
-  choice: "1" | "X" | "2";
+  market: "1X2" | "OU25" | "BTTS" | "DC";
+  choice: string;
   homeTeam: string;
   awayTeam: string;
   isYou: boolean;
@@ -201,7 +202,8 @@ export async function getCommunityFeed(currentUserId: string, limit = 15): Promi
     id: p.id,
     displayName: p.user.displayName,
     favoriteTeam: p.user.favoriteTeam,
-    choice: p.choice as "1" | "X" | "2",
+    market: p.market as "1X2" | "OU25" | "BTTS" | "DC",
+    choice: p.choice,
     homeTeam: p.match.homeTeam,
     awayTeam: p.match.awayTeam,
     isYou: p.userId === currentUserId,

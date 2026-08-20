@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth";
+import { getOddsFor, isValidChoice, type MarketCode } from "@/lib/markets";
 
 const schema = z.object({
   matchId: z.string(),
-  choice: z.enum(["1", "X", "2"]),
+  market: z.enum(["1X2", "OU25", "BTTS", "DC"]).default("1X2"),
+  choice: z.string(),
   stake: z.number().int().min(10).max(100000),
 });
 
@@ -21,7 +23,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Geçersiz tahmin bilgisi." }, { status: 400 });
   }
 
-  const { matchId, choice, stake } = parsed.data;
+  const { matchId, market, choice, stake } = parsed.data;
+
+  if (!isValidChoice(market as MarketCode, choice)) {
+    return NextResponse.json({ error: "Geçersiz seçim." }, { status: 400 });
+  }
 
   const match = await prisma.match.findUnique({ where: { id: matchId } });
   if (!match) {
@@ -29,6 +35,11 @@ export async function POST(req: NextRequest) {
   }
   if (match.status === "finished") {
     return NextResponse.json({ error: "Bu maç için tahmin süresi doldu." }, { status: 400 });
+  }
+
+  const oddsAtPick = getOddsFor(match, market as MarketCode, choice);
+  if (oddsAtPick == null) {
+    return NextResponse.json({ error: "Bu seçim için oran bulunamadı." }, { status: 400 });
   }
 
   const existingOpen = await prisma.prediction.findFirst({
@@ -40,9 +51,6 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-
-  const oddsAtPick =
-    choice === "1" ? match.oddsHome : choice === "X" ? match.oddsDraw : match.oddsAway;
 
   const result = await prisma.$transaction(async (tx) => {
     const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
@@ -56,7 +64,7 @@ export async function POST(req: NextRequest) {
     });
 
     return tx.prediction.create({
-      data: { userId, matchId, choice, stake, oddsAtPick },
+      data: { userId, matchId, market, choice, stake, oddsAtPick },
     });
   }).catch((err) => {
     if (err instanceof Error && err.message === "INSUFFICIENT_BALANCE") {

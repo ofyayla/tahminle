@@ -18,7 +18,8 @@ export default async function TahminlerPage() {
 
   const toDTO = (p: (typeof openRaw)[number]): PredictionDTO => ({
     id: p.id,
-    choice: p.choice as "1" | "X" | "2",
+    market: p.market as "1X2" | "OU25" | "BTTS" | "DC",
+    choice: p.choice,
     stake: p.stake,
     oddsAtPick: p.oddsAtPick,
     status: p.status as "open" | "won" | "lost",
@@ -31,6 +32,8 @@ export default async function TahminlerPage() {
       kickoff: p.match.kickoff.toISOString(),
       status: p.match.status,
       result: p.match.result,
+      resultOver25: p.match.resultOver25,
+      resultBtts: p.match.resultBtts,
     },
   });
 

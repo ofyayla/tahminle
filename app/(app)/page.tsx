@@ -17,10 +17,10 @@ export default async function MacGunuPage() {
     getLeaderboard(user.id),
     prisma.prediction.findMany({
       where: { userId: user.id, status: "open" },
-      select: { matchId: true, choice: true },
+      select: { matchId: true, market: true, choice: true },
     }),
   ]);
-  const predictionByMatchId = new Map(openPredictions.map((p) => [p.matchId, p.choice]));
+  const predictionByMatchId = new Map(openPredictions.map((p) => [p.matchId, p]));
   const pulseByMatchId = await getCommunityPulse(matches.map((m) => m.id));
 
   const matchDTOs: MatchDTO[] = matches.map((m) => ({
@@ -47,7 +47,8 @@ export default async function MacGunuPage() {
     },
     status: m.status,
     hasOpenPrediction: predictionByMatchId.has(m.id),
-    predictedChoice: (predictionByMatchId.get(m.id) as "1" | "X" | "2" | undefined) ?? null,
+    predictedMarket: (predictionByMatchId.get(m.id)?.market as MatchDTO["predictedMarket"]) ?? null,
+    predictedChoice: predictionByMatchId.get(m.id)?.choice ?? null,
     pulse: pulseByMatchId[m.id] ?? { total: 0, home: 0, draw: 0, away: 0 },
   }));
 

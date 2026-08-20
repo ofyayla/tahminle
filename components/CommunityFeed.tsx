@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
+import { getChoiceLabel } from "@/lib/markets";
 import type { CommunityFeedItem } from "@/lib/data";
 
 function timeAgo(date: Date): string {
@@ -29,8 +30,7 @@ export default function CommunityFeed({ items }: { items: CommunityFeedItem[] })
         <div className="divide-y divide-card-border rounded-2xl border border-card-border bg-card">
           {items.map((item) => {
             const meta = item.favoriteTeam ? TEAM_META[item.favoriteTeam as TeamCode] : null;
-            const choiceText =
-              item.choice === "1" ? item.homeTeam : item.choice === "2" ? item.awayTeam : "Berabere";
+            const choiceText = getChoiceLabel(item, item.market, item.choice);
 
             return (
               <div key={item.id} className="flex items-center gap-3 px-4 py-3.5">

@@ -3,20 +3,16 @@
 import { useState } from "react";
 import TeamAvatar from "./TeamAvatar";
 import { formatMatchDate, formatOdds, formatTime, formatTL } from "@/lib/format";
+import { getActualResultLabel, getChoiceLabel, getMarketName } from "@/lib/markets";
 import type { PredictionDTO } from "@/lib/predictionTypes";
-
-const CHOICE_LABEL: Record<string, (home: string, away: string) => string> = {
-  "1": (home) => `${home} kazanır`,
-  X: () => "Berabere",
-  "2": (_home, away) => `${away} kazanır`,
-};
 
 export default function PredictionCard({ prediction }: { prediction: PredictionDTO }) {
   const [open, setOpen] = useState(false);
   const { match } = prediction;
   const kickoff = new Date(match.kickoff);
-  const choiceText = CHOICE_LABEL[prediction.choice](match.homeTeam, match.awayTeam);
-  const resultText = match.result ? CHOICE_LABEL[match.result](match.homeTeam, match.awayTeam) : null;
+  const choiceText = getChoiceLabel(match, prediction.market, prediction.choice);
+  const marketName = getMarketName(prediction.market);
+  const resultText = getActualResultLabel(match, prediction.market, match);
   const potential = Math.round(prediction.stake * prediction.oddsAtPick);
   const isSettled = prediction.status !== "open";
   const walletEffect = prediction.status === "won" ? (prediction.payout ?? 0) : -prediction.stake;
@@ -61,7 +57,7 @@ export default function PredictionCard({ prediction }: { prediction: PredictionD
 
       <div className="mb-3 flex items-center justify-between rounded-xl border border-card-border bg-bg-elevated px-3.5 py-3">
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-wide text-ink-dim">Tahminin</div>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-ink-dim">{marketName}</div>
           <div className="text-sm font-semibold">{choiceText}</div>
         </div>
         <span className="rounded-full bg-gold px-2.5 py-1 text-xs font-bold text-bg">{formatOdds(prediction.oddsAtPick)}</span>

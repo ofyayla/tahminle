@@ -22,6 +22,7 @@ export type MatchDTO = {
   };
   status: string;
   hasOpenPrediction: boolean;
-  predictedChoice: "1" | "X" | "2" | null;
+  predictedMarket: "1X2" | "OU25" | "BTTS" | "DC" | null;
+  predictedChoice: string | null;
   pulse: { total: number; home: number; draw: number; away: number };
 };

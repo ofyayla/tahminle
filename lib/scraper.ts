@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { fetchOddsFromBackend, type BackendOddsMatch } from "./oddsBackend";
+import { buildMatchKey } from "./matchKey";
 
 const BULLETIN_URL = "https://cdnbulten.nesine.com/api/bulten/getprebultenfull";
 
@@ -56,12 +57,13 @@ async function fetchFromNesine(): Promise<BackendOddsMatch[]> {
     const oddsAway = marketWinner.OCA.find((o) => o.N === 3)?.O;
     if (oddsHome == null || oddsDraw == null || oddsAway == null) continue;
 
+    const kickoff = ev.ESD ? new Date(ev.ESD) : new Date();
     results.push({
-      externalId: `nesine:${ev.C}`,
+      externalId: buildMatchKey(ev.HN!, ev.AN!, kickoff),
       homeTeam: ev.HN!,
       awayTeam: ev.AN!,
       league: "Süper Lig",
-      kickoff: ev.ESD ? new Date(ev.ESD) : new Date(),
+      kickoff,
       oddsHome,
       oddsDraw,
       oddsAway,

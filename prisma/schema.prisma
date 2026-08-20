@@ -50,7 +50,9 @@ model Match {
 
   oddsUpdatedAt DateTime @default(now())
   status        String   @default("upcoming") // upcoming | live | finished
-  result        String? // "1" | "X" | "2"
+  result        String? // 1X2 outcome: "1" | "X" | "2"
+  resultOver25  Boolean? // total goals > 2.5, simulated at settlement
+  resultBtts    Boolean? // both teams scored, simulated at settlement
   createdAt     DateTime @default(now())
 
   predictions Prediction[]
@@ -60,7 +62,8 @@ model Prediction {
   id         String    @id @default(cuid())
   userId     String
   matchId    String
-  choice     String // "1" | "X" | "2"
+  market     String    @default("1X2") // "1X2" | "OU25" | "BTTS" | "DC"
+  choice     String // 1X2: "1"|"X"|"2" · OU25: "OVER"|"UNDER" · BTTS: "YES"|"NO" · DC: "1X"|"12"|"X2"
   stake      Int
   oddsAtPick Float
   status     String    @default("open") // open | won | lost

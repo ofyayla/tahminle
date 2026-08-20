@@ -3,21 +3,23 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatOdds, formatTL } from "@/lib/format";
+import { getChoiceLabel, getMarketName, type MarketCode } from "@/lib/markets";
 import TeamAvatar from "./TeamAvatar";
 import type { MatchDTO } from "@/lib/types";
 
-const CHOICE_LABEL: Record<string, string> = { "1": "ev sahibi kazanır", X: "berabere", "2": "deplasman kazanır" };
 const QUICK_STAKES = [50, 100, 250, 500];
 
 export default function PredictionSheet({
   match,
+  market,
   choice,
   odds,
   available,
   onClose,
 }: {
   match: MatchDTO;
-  choice: "1" | "X" | "2";
+  market: MarketCode;
+  choice: string;
   odds: number;
   available: number;
   onClose: () => void;
@@ -28,8 +30,8 @@ export default function PredictionSheet({
   const [error, setError] = useState<string | null>(null);
 
   const potential = Math.round(stake * odds);
-  const teamName = choice === "1" ? match.homeTeam : choice === "2" ? match.awayTeam : null;
-  const choiceText = teamName ? `${teamName} kazanır` : CHOICE_LABEL[choice];
+  const choiceText = getChoiceLabel(match, market, choice);
+  const marketName = getMarketName(market);
 
   async function submit() {
     setError(null);
@@ -46,7 +48,7 @@ export default function PredictionSheet({
       const res = await fetch("/api/predictions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchId: match.id, choice, stake }),
+        body: JSON.stringify({ matchId: match.id, market, choice, stake }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -82,7 +84,7 @@ export default function PredictionSheet({
         </div>
 
         <div className="mb-4 rounded-2xl border border-gold/40 bg-gold/10 p-3">
-          <div className="text-xs uppercase tracking-wide text-gold-dim">Tahminin</div>
+          <div className="text-xs uppercase tracking-wide text-gold-dim">{marketName}</div>
           <div className="flex items-center justify-between">
             <span className="font-semibold">{choiceText}</span>
             <span className="rounded-full bg-gold px-2.5 py-1 text-xs font-bold text-bg">{formatOdds(odds)}</span>
