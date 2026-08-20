@@ -38,10 +38,7 @@ export default async function HesabimPage() {
         )}
 
         <div className="relative flex flex-col items-center">
-          <div
-            className="mb-3 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 bg-bg-elevated"
-            style={{ borderColor: meta?.color ?? "#616a80" }}
-          >
+          <div className="mb-3 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-bg-elevated">
             {meta ? (
               <Image src={meta.logo} alt={meta.name} width={80} height={80} className="h-full w-full object-cover" />
             ) : (

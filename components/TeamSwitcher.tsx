@@ -44,10 +44,7 @@ export default function TeamSwitcher({ current }: { current: TeamCode | null }) 
             }`}
             style={active ? { borderColor: meta.color } : undefined}
           >
-            <div
-              className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border-2"
-              style={{ borderColor: active ? meta.color : "#232a3d" }}
-            >
+            <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full">
               <Image src={meta.logo} alt={meta.name} width={44} height={44} className="h-full w-full object-cover" />
             </div>
             <span className="text-xs font-bold">{meta.short}</span>
