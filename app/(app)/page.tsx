@@ -20,7 +20,12 @@ export default async function MacGunuPage() {
       select: { matchId: true, market: true, choice: true },
     }),
   ]);
-  const predictionByMatchId = new Map(openPredictions.map((p) => [p.matchId, p]));
+  const openByMatchId = new Map<string, Record<string, string>>();
+  for (const p of openPredictions) {
+    const bucket = openByMatchId.get(p.matchId) ?? {};
+    bucket[p.market] = p.choice;
+    openByMatchId.set(p.matchId, bucket);
+  }
   const pulseByMatchId = await getCommunityPulse(matches.map((m) => m.id));
 
   const matchDTOs: MatchDTO[] = matches.map((m) => ({
@@ -46,9 +51,7 @@ export default async function MacGunuPage() {
       extraMarkets: (m.extraMarkets as Record<string, number> | null) ?? null,
     },
     status: m.status,
-    hasOpenPrediction: predictionByMatchId.has(m.id),
-    predictedMarket: (predictionByMatchId.get(m.id)?.market as MatchDTO["predictedMarket"]) ?? null,
-    predictedChoice: predictionByMatchId.get(m.id)?.choice ?? null,
+    openByMarket: openByMatchId.get(m.id) ?? {},
     pulse: pulseByMatchId[m.id] ?? { total: 0, home: 0, draw: 0, away: 0 },
   }));
 

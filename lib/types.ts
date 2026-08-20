@@ -21,8 +21,9 @@ export type MatchDTO = {
     extraMarkets: Record<string, number> | null;
   };
   status: string;
-  hasOpenPrediction: boolean;
-  predictedMarket: "1X2" | "OU25" | "BTTS" | "DC" | "EXTRA" | null;
-  predictedChoice: string | null;
+  // Keyed by market ("1X2" | "OU25" | "BTTS" | "DC" | "EXTRA") — a user can
+  // hold at most one open prediction per market per match, but different
+  // markets on the same match are independent of each other.
+  openByMarket: Record<string, string>;
   pulse: { total: number; home: number; draw: number; away: number };
 };

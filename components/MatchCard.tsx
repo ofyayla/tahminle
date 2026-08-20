@@ -4,7 +4,7 @@ import Countdown from "./Countdown";
 import CommunityPulseBar from "./CommunityPulseBar";
 import ExtraMarketsPanel from "./ExtraMarketsPanel";
 import { formatMatchDate, formatTime } from "@/lib/format";
-import { getChoiceLabel, type MarketCode } from "@/lib/markets";
+import { getChoiceLabel, getMarketName, type MarketCode } from "@/lib/markets";
 import type { MatchDTO } from "@/lib/types";
 
 export default function MatchCard({
@@ -17,7 +17,11 @@ export default function MatchCard({
   onPick: (market: MarketCode, choice: string) => void;
 }) {
   const kickoff = new Date(match.kickoff);
-  const disabled = match.hasOpenPrediction || match.status === "finished";
+  const matchClosed = match.status === "finished";
+  const choice1X2 = match.openByMarket["1X2"];
+  const disabled1X2 = matchClosed || choice1X2 != null;
+
+  const openEntries = Object.entries(match.openByMarket);
 
   return (
     <div
@@ -58,21 +62,25 @@ export default function MatchCard({
       </div>
 
       <div className="flex gap-2">
-        <OddsButton label="1" value={match.oddsHome} prevValue={match.prevOddsHome} disabled={disabled} selected={match.predictedMarket === "1X2" && match.predictedChoice === "1"} onClick={() => onPick("1X2", "1")} />
-        <OddsButton label="X" value={match.oddsDraw} prevValue={match.prevOddsDraw} disabled={disabled} selected={match.predictedMarket === "1X2" && match.predictedChoice === "X"} onClick={() => onPick("1X2", "X")} />
-        <OddsButton label="2" value={match.oddsAway} prevValue={match.prevOddsAway} disabled={disabled} selected={match.predictedMarket === "1X2" && match.predictedChoice === "2"} onClick={() => onPick("1X2", "2")} />
+        <OddsButton label="1" value={match.oddsHome} prevValue={match.prevOddsHome} disabled={disabled1X2} selected={choice1X2 === "1"} onClick={() => onPick("1X2", "1")} />
+        <OddsButton label="X" value={match.oddsDraw} prevValue={match.prevOddsDraw} disabled={disabled1X2} selected={choice1X2 === "X"} onClick={() => onPick("1X2", "X")} />
+        <OddsButton label="2" value={match.oddsAway} prevValue={match.prevOddsAway} disabled={disabled1X2} selected={choice1X2 === "2"} onClick={() => onPick("1X2", "2")} />
       </div>
 
-      {match.hasOpenPrediction && match.predictedMarket && (
-        <p className="mt-3 text-center text-xs font-semibold text-gold">
-          Tahminin: {getChoiceLabel(match, match.predictedMarket, match.predictedChoice!)}
-        </p>
+      {openEntries.length > 0 && (
+        <div className="mt-3 space-y-1">
+          {openEntries.map(([market, choice]) => (
+            <p key={market} className="text-center text-xs font-semibold text-gold">
+              {getMarketName(market as MarketCode)}: {getChoiceLabel(match, market as MarketCode, choice)}
+            </p>
+          ))}
+        </div>
       )}
-      {match.status === "finished" && (
+      {matchClosed && (
         <p className="mt-3 text-center text-xs font-semibold text-ink-faint">Maç sonuçlandı</p>
       )}
 
-      <ExtraMarketsPanel match={match} disabled={disabled} onPick={onPick} />
+      <ExtraMarketsPanel match={match} matchClosed={matchClosed} onPick={onPick} />
       <CommunityPulseBar pulse={match.pulse} />
     </div>
   );

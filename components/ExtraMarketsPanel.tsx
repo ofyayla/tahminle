@@ -55,15 +55,16 @@ function MarketRow({
 
 export default function ExtraMarketsPanel({
   match,
-  disabled,
+  matchClosed,
   onPick,
 }: {
   match: MatchDTO;
-  disabled: boolean;
+  matchClosed: boolean;
   onPick: (market: MarketCode, choice: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const { extraOdds } = match;
+  const disabledFor = (market: MarketCode) => matchClosed || match.openByMarket[market] != null;
 
   const structuredCount = [
     extraOdds.over25,
@@ -88,8 +89,7 @@ export default function ExtraMarketsPanel({
   const totalCount = structuredCount + scoreEntries.length;
   if (totalCount === 0) return null;
 
-  const selectedFor = (market: MarketCode) =>
-    match.predictedMarket === market ? match.predictedChoice : null;
+  const selectedFor = (market: MarketCode) => match.openByMarket[market] ?? null;
 
   return (
     <div className="mt-3 border-t border-card-border pt-3">
@@ -121,7 +121,7 @@ export default function ExtraMarketsPanel({
           <MarketRow
             title="2.5 Gol Alt/Üst"
             market="OU25"
-            disabled={disabled}
+            disabled={disabledFor("OU25")}
             selectedChoice={selectedFor("OU25")}
             onPick={onPick}
             items={[
@@ -132,7 +132,7 @@ export default function ExtraMarketsPanel({
           <MarketRow
             title="Karşılıklı Gol"
             market="BTTS"
-            disabled={disabled}
+            disabled={disabledFor("BTTS")}
             selectedChoice={selectedFor("BTTS")}
             onPick={onPick}
             items={[
@@ -143,7 +143,7 @@ export default function ExtraMarketsPanel({
           <MarketRow
             title="Çifte Şans"
             market="DC"
-            disabled={disabled}
+            disabled={disabledFor("DC")}
             selectedChoice={selectedFor("DC")}
             onPick={onPick}
             items={[
@@ -160,17 +160,18 @@ export default function ExtraMarketsPanel({
               </div>
               <div className="max-h-64 space-y-1.5 overflow-y-auto rounded-lg border border-card-border bg-card p-2">
                 {scoreEntries.map(([label, value]) => {
-                  const selected = match.predictedMarket === "EXTRA" && match.predictedChoice === label;
+                  const scoreDisabled = disabledFor("EXTRA");
+                  const selected = match.openByMarket.EXTRA === label;
                   return (
                     <button
                       key={label}
                       type="button"
-                      disabled={disabled}
+                      disabled={scoreDisabled}
                       onClick={() => onPick("EXTRA", label)}
                       className={`flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors ${
                         selected
                           ? "border-gold bg-gold/10"
-                          : `border-transparent enabled:hover:border-card-border enabled:hover:bg-bg-elevated ${disabled ? "opacity-40" : ""}`
+                          : `border-transparent enabled:hover:border-card-border enabled:hover:bg-bg-elevated ${scoreDisabled ? "opacity-40" : ""}`
                       }`}
                     >
                       <span className={selected ? "text-gold" : "text-ink-dim"}>{label}</span>

@@ -46,12 +46,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Bu seçim için oran bulunamadı." }, { status: 400 });
   }
 
+  // One open prediction per market per match — e.g. you can hold a 1X2 pick
+  // and a Maç Skoru pick on the same match at once, but not two 1X2 picks.
   const existingOpen = await prisma.prediction.findFirst({
-    where: { userId, matchId, status: "open" },
+    where: { userId, matchId, market, status: "open" },
   });
   if (existingOpen) {
     return NextResponse.json(
-      { error: "Bu maç için zaten açık bir tahminin var." },
+      { error: "Bu market için zaten açık bir tahminin var." },
       { status: 400 }
     );
   }
