@@ -14,10 +14,7 @@ import type { Browser, Page } from "puppeteer-core";
 
 type ScrapedScore = { homeScore: number; awayScore: number };
 
-const CACHE_TTL_MS = 45 * 1000;
 const SCRAPE_TIMEOUT_MS = 10 * 1000;
-
-const cache = new Map<string, { data: ScrapedScore | null; expiresAt: number }>();
 
 async function launchBrowser(): Promise<Browser> {
   const puppeteer = await import("puppeteer-core");
@@ -104,14 +101,6 @@ async function scrapeNesineLiveScore(teamName: string): Promise<ScrapedScore | n
   }
 }
 
-// `cacheKey` should be the match's stable id — the same fixture must reuse
-// the same cache slot across repeated page-load-triggered calls, or every
-// user refresh would launch its own browser.
-export async function getLiveScore(teamName: string, cacheKey: string): Promise<ScrapedScore | null> {
-  const cached = cache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) return cached.data;
-
-  const data = await scrapeNesineLiveScore(teamName);
-  cache.set(cacheKey, { data, expiresAt: Date.now() + CACHE_TTL_MS });
-  return data;
+export async function getLiveScore(teamName: string): Promise<ScrapedScore | null> {
+  return scrapeNesineLiveScore(teamName);
 }

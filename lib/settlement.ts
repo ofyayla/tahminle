@@ -14,6 +14,12 @@ import { TRACKED_TEAMS } from "./scraper";
 // still being played. Always give the full grace period instead.
 const SIMULATION_FALLBACK_MS = 115 * 60 * 1000;
 
+// The Nesine scrape fallback launches a real headless browser (~2-20s) — far
+// too slow to redo on every single page load. Skip it if we scraped this
+// match recently; stored on the row itself (not an in-memory cache) since
+// serverless invocations don't share memory across instances.
+const SCRAPE_THROTTLE_MS = 45 * 1000;
+
 function pickWeighted(weights: Record<string, number>): string {
   const entries = Object.entries(weights);
   const total = entries.reduce((sum, [, w]) => sum + w, 0);
@@ -123,11 +129,15 @@ export async function settleDueMatches() {
     // The results API has no live score for this one (e.g. its quota is
     // exhausted) — fall back to scraping Nesine's live page. Display only:
     // a missed/failed scrape just means no update this cycle, never "over".
+    const recentlyScraped =
+      match.liveScoreUpdatedAt && now - match.liveScoreUpdatedAt.getTime() < SCRAPE_THROTTLE_MS;
     const trackedTeam = TRACKED_TEAMS.find((t) => match.homeTeam.includes(t) || match.awayTeam.includes(t));
-    if (trackedTeam) {
+    if (trackedTeam && !recentlyScraped) {
       scrapeCandidates.push({ matchId: match.id, trackedTeam });
     }
   }
+
+  const scrapedAtMatchIds: string[] = [];
 
   if (scrapeCandidates.length > 0) {
     // Run scrapes in parallel — each spins up its own short-lived headless
@@ -136,10 +146,14 @@ export async function settleDueMatches() {
     const scraped = await Promise.all(
       scrapeCandidates.map(async (c) => ({
         matchId: c.matchId,
-        score: await getLiveScore(c.trackedTeam, c.matchId).catch(() => null),
+        score: await getLiveScore(c.trackedTeam).catch(() => null),
       }))
     );
     for (const s of scraped) {
+      // Stamp the throttle timestamp even on a miss — a match Nesine's page
+      // doesn't currently surface (network hiccup, odd naming) shouldn't be
+      // retried on every single request either.
+      scrapedAtMatchIds.push(s.matchId);
       if (s.score) liveScoreUpdates.push({ matchId: s.matchId, homeScore: s.score.homeScore, awayScore: s.score.awayScore });
     }
   }
@@ -149,10 +163,18 @@ export async function settleDueMatches() {
       liveScoreUpdates.map((u) =>
         prisma.match.update({
           where: { id: u.matchId },
-          data: { homeScore: u.homeScore, awayScore: u.awayScore },
+          data: { homeScore: u.homeScore, awayScore: u.awayScore, liveScoreUpdatedAt: new Date() },
         })
       )
     );
+  }
+
+  const missedScrapeIds = scrapedAtMatchIds.filter((id) => !liveScoreUpdates.some((u) => u.matchId === id));
+  if (missedScrapeIds.length > 0) {
+    await prisma.match.updateMany({
+      where: { id: { in: missedScrapeIds } },
+      data: { liveScoreUpdatedAt: new Date() },
+    });
   }
 
   let settledCount = 0;

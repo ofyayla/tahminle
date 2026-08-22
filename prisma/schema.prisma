@@ -53,8 +53,14 @@ model Match {
   result        String? // 1X2 outcome: "1" | "X" | "2"
   resultOver25  Boolean? // total goals > 2.5
   resultBtts    Boolean? // both teams scored
-  homeScore     Int? // final score, only when settled against a real result
+  homeScore     Int? // current/final score — set while live too, as a display-only in-play score
   awayScore     Int?
+  // When homeScore/awayScore was last refreshed from a live source (real
+  // results API or the Nesine scrape fallback). Lets a fresh page load skip
+  // re-scraping a match that was already checked moments ago, without
+  // needing an in-memory cache that wouldn't survive across serverless
+  // instances anyway.
+  liveScoreUpdatedAt DateTime?
   createdAt     DateTime @default(now())
 
   predictions Prediction[]
