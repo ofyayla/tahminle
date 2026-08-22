@@ -14,7 +14,15 @@ import type { Browser, Page } from "puppeteer-core";
 
 type ScrapedScore = { homeScore: number; awayScore: number };
 
-const SCRAPE_TIMEOUT_MS = 10 * 1000;
+const NAV_TIMEOUT_MS = 8 * 1000;
+const SCORE_WAIT_MS = 6 * 1000;
+
+// Reused across invocations on the same warm serverless instance — relaunching
+// chromium (extracting the binary, cold-starting the process) is the single
+// biggest cost here, so paying it once per warm instance instead of once per
+// request is the main win. A dead/disconnected browser is detected and
+// relaunched below rather than assumed healthy.
+let browserPromise: Promise<Browser> | null = null;
 
 async function launchBrowser(): Promise<Browser> {
   const puppeteer = await import("puppeteer-core");
@@ -37,67 +45,98 @@ async function launchBrowser(): Promise<Browser> {
   });
 }
 
-async function extractScore(page: Page, teamName: string): Promise<ScrapedScore | null> {
-  const deadline = Date.now() + SCRAPE_TIMEOUT_MS;
-
-  while (Date.now() < deadline) {
-    const result = await page.evaluate((name: string) => {
-      const leaf = Array.from(document.querySelectorAll<HTMLElement>("*")).find(
-        (el) => el.children.length === 0 && el.textContent?.trim() === name
-      );
-      if (!leaf) return null;
-
-      let node: HTMLElement | null = leaf;
-      let columns: HTMLElement[] = [];
-      for (let i = 0; i < 10 && node; i++) {
-        columns = Array.from(node.querySelectorAll<HTMLElement>('[data-test-id="ScoreColumn"]'));
-        if (columns.length > 0) break;
-        node = node.parentElement;
-      }
-      if (columns.length === 0) return null;
-
-      // Once a match reaches the second half, Nesine shows two score
-      // columns side by side: half-time score first, current score last.
-      // Before that split appears there's only the one (current) column —
-      // either way, the last column is always the up-to-date score.
-      const current = columns[columns.length - 1];
-      const scoreCells = Array.from(current.querySelectorAll('[data-test-id="ScoreCell"]')).map(
-        (c) => c.textContent?.trim() ?? ""
-      );
-      if (scoreCells.length !== 2) return null;
-      return scoreCells;
-    }, teamName);
-
-    if (result) {
-      const [home, away] = result.map((s) => parseInt(s, 10));
-      if (Number.isFinite(home) && Number.isFinite(away)) return { homeScore: home, awayScore: away };
-      return null;
-    }
-
-    await new Promise((r) => setTimeout(r, 500));
+async function getBrowser(): Promise<Browser> {
+  if (browserPromise) {
+    const browser = await browserPromise.catch(() => null);
+    if (browser && browser.connected) return browser;
+    browserPromise = null;
   }
+  browserPromise = launchBrowser();
+  return browserPromise;
+}
 
+// Nesine's page pulls in a large pile of ads/analytics (GTM, Facebook pixel,
+// Clarity, push-notification SDKs, ...) that add real seconds to page load
+// and contribute nothing to the score in the DOM — block them outright.
+async function blockNonEssentialRequests(page: Page) {
+  await page.setRequestInterception(true);
+  page.on("request", (req) => {
+    const type = req.resourceType();
+    // Not "stylesheet": blocking it stops the page from rendering the match
+    // list at all (confirmed by testing) — something in Nesine's own SPA
+    // hydration gates on its CSS loading.
+    if (type === "image" || type === "font" || type === "media") {
+      req.abort();
+      return;
+    }
+    const url = req.url();
+    if (/googletagmanager|google-analytics|doubleclick|facebook\.net|clarity\.ms|dengage|mixpanel|hardal|criteo|adform/i.test(url)) {
+      req.abort();
+      return;
+    }
+    req.continue();
+  });
+}
+
+async function extractScore(page: Page, teamName: string): Promise<ScrapedScore | null> {
+  const result = await page
+    .waitForFunction(
+      (name: string) => {
+        const leaf = Array.from(document.querySelectorAll<HTMLElement>('[data-test-id="matchName"] span')).find(
+          (el) => el.textContent?.trim() === name
+        );
+        if (!leaf) return null;
+
+        let node: HTMLElement | null = leaf;
+        let columns: HTMLElement[] = [];
+        for (let i = 0; i < 10 && node; i++) {
+          columns = Array.from(node.querySelectorAll<HTMLElement>('[data-test-id="ScoreColumn"]'));
+          if (columns.length > 0) break;
+          node = node.parentElement;
+        }
+        if (columns.length === 0) return null;
+
+        // Once a match reaches the second half, Nesine shows two score
+        // columns side by side: half-time score first, current score last.
+        // Before that split appears there's only the one (current) column —
+        // either way, the last column is always the up-to-date score.
+        const current = columns[columns.length - 1];
+        const scoreCells = Array.from(current.querySelectorAll('[data-test-id="ScoreCell"]')).map(
+          (c) => c.textContent?.trim() ?? ""
+        );
+        return scoreCells.length === 2 ? scoreCells : null;
+      },
+      { timeout: SCORE_WAIT_MS, polling: 250 },
+      teamName
+    )
+    .then((handle) => handle.jsonValue() as Promise<string[] | null>)
+    .catch(() => null);
+
+  if (!result) return null;
+  const [home, away] = result.map((s) => parseInt(s, 10));
+  if (Number.isFinite(home) && Number.isFinite(away)) return { homeScore: home, awayScore: away };
   return null;
 }
 
 async function scrapeNesineLiveScore(teamName: string): Promise<ScrapedScore | null> {
-  let browser: Browser | null = null;
+  let page: Page | null = null;
   try {
-    browser = await launchBrowser();
-    const page = await browser.newPage();
+    const browser = await getBrowser();
+    page = await browser.newPage();
     await page.setUserAgent(
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     );
+    await blockNonEssentialRequests(page);
     await page.goto(`https://www.nesine.com/iddaa?et=1&le=2&q=${encodeURIComponent(teamName)}`, {
       waitUntil: "domcontentloaded",
-      timeout: SCRAPE_TIMEOUT_MS,
+      timeout: NAV_TIMEOUT_MS,
     });
     return await extractScore(page, teamName);
   } catch (err) {
     console.error(`Nesine canlı skor scrape hatası (${teamName}):`, err);
     return null;
   } finally {
-    if (browser) await browser.close().catch(() => {});
+    if (page) await page.close().catch(() => {});
   }
 }
 
