@@ -55,6 +55,19 @@ type MatchResultOutcome = {
   awayScore: number | null;
 };
 
+// Derives a deterministic outcome from a scoreline we already have on hand —
+// e.g. the last score our own live-score scrape picked up — rather than
+// gambling on a random simulation when one isn't strictly necessary.
+function outcomeFromScore(homeScore: number, awayScore: number): MatchResultOutcome {
+  return {
+    result: homeScore > awayScore ? "1" : homeScore < awayScore ? "2" : "X",
+    resultOver25: homeScore + awayScore > 2.5,
+    resultBtts: homeScore > 0 && awayScore > 0,
+    homeScore,
+    awayScore,
+  };
+}
+
 function simulateOutcome(match: {
   oddsHome: number;
   oddsDraw: number;
@@ -121,7 +134,16 @@ export async function settleDueMatches() {
     const elapsed = now - match.kickoff.getTime();
 
     if (elapsed > SIMULATION_FALLBACK_MS) {
-      toSettle.push({ match, outcome: simulateOutcome(match) });
+      // We may already have a real scoreline sitting on the row from an
+      // earlier live-score update (real API or the Nesine scrape) even
+      // though nothing ever confirmed the match as "completed" — use it
+      // instead of a coin flip. Only truly simulate when we have no score
+      // data at all.
+      const outcome =
+        match.homeScore != null && match.awayScore != null
+          ? outcomeFromScore(match.homeScore, match.awayScore)
+          : simulateOutcome(match);
+      toSettle.push({ match, outcome });
       continue;
     }
 
