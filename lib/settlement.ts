@@ -85,6 +85,7 @@ export async function settleDueMatches() {
 
   const toSettle: { match: (typeof startedMatches)[number]; outcome: MatchResultOutcome }[] = [];
   const liveScoreUpdates: { matchId: string; homeScore: number; awayScore: number }[] = [];
+  const scrapeCandidates: { matchId: string; trackedTeam: string }[] = [];
 
   for (const match of startedMatches) {
     const real = findRealResult(match, realResults);
@@ -124,10 +125,22 @@ export async function settleDueMatches() {
     // a missed/failed scrape just means no update this cycle, never "over".
     const trackedTeam = TRACKED_TEAMS.find((t) => match.homeTeam.includes(t) || match.awayTeam.includes(t));
     if (trackedTeam) {
-      const scraped = await getLiveScore(trackedTeam, match.id).catch(() => null);
-      if (scraped) {
-        liveScoreUpdates.push({ matchId: match.id, homeScore: scraped.homeScore, awayScore: scraped.awayScore });
-      }
+      scrapeCandidates.push({ matchId: match.id, trackedTeam });
+    }
+  }
+
+  if (scrapeCandidates.length > 0) {
+    // Run scrapes in parallel — each spins up its own short-lived headless
+    // browser, and sequentially awaiting them would multiply the ~2-10s cost
+    // per simultaneously live match.
+    const scraped = await Promise.all(
+      scrapeCandidates.map(async (c) => ({
+        matchId: c.matchId,
+        score: await getLiveScore(c.trackedTeam, c.matchId).catch(() => null),
+      }))
+    );
+    for (const s of scraped) {
+      if (s.score) liveScoreUpdates.push({ matchId: s.matchId, homeScore: s.score.homeScore, awayScore: s.score.awayScore });
     }
   }
 

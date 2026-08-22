@@ -4,6 +4,11 @@ import { getCommunityPulse, getUpcomingMatches, getWalletSummary } from "@/lib/d
 import { prisma } from "@/lib/prisma";
 import type { MatchDTO } from "@/lib/types";
 
+// getUpcomingMatches() -> syncMatchState() can fall back to a headless-browser
+// live-score scrape (lib/liveScoreScraper.ts), which needs more than the
+// default timeout.
+export const maxDuration = 30;
+
 export async function GET() {
   const userId = await getSessionUserId();
   if (!userId) {

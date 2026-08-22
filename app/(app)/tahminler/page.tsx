@@ -4,6 +4,10 @@ import { formatTL } from "@/lib/format";
 import PredictionsTabs from "@/components/PredictionsTabs";
 import type { PredictionDTO } from "@/lib/predictionTypes";
 
+// syncMatchState() can fall back to a headless-browser live-score scrape
+// (lib/liveScoreScraper.ts), which needs more than the default timeout.
+export const maxDuration = 30;
+
 export default async function TahminlerPage() {
   const user = await getCurrentUser();
   if (!user) return null;

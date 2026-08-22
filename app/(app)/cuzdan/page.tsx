@@ -4,6 +4,10 @@ import { formatTL } from "@/lib/format";
 import ActivityFeed from "@/components/ActivityFeed";
 import InfoAccordion from "@/components/InfoAccordion";
 
+// syncMatchState() can fall back to a headless-browser live-score scrape
+// (lib/liveScoreScraper.ts), which needs more than the default timeout.
+export const maxDuration = 30;
+
 export default async function CuzdanPage() {
   const user = await getCurrentUser();
   if (!user) return null;

@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // These ship a native chromium binary (used by lib/liveScoreScraper.ts) —
+  // webpack must not try to bundle them, just resolve at runtime like any
+  // other node_modules package.
+  serverExternalPackages: ["puppeteer-core", "@sparticuz/chromium"],
   async headers() {
     return [
       {

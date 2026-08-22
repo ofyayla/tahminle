@@ -8,6 +8,11 @@ import type { MatchDTO } from "@/lib/types";
 import { prisma } from "@/lib/prisma";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
 
+// getUpcomingMatches() -> syncMatchState() can fall back to a headless-browser
+// live-score scrape (lib/liveScoreScraper.ts), which needs more than the
+// default timeout.
+export const maxDuration = 30;
+
 export default async function MacGunuPage() {
   const user = await getCurrentUser();
   if (!user) return null;

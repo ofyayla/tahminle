@@ -6,6 +6,10 @@ import { getOddsFor, isValidChoice, type MarketCode } from "@/lib/markets";
 import { getPerformanceStats, getPredictions, syncMatchState } from "@/lib/data";
 import type { PredictionDTO } from "@/lib/predictionTypes";
 
+// syncMatchState() can fall back to a headless-browser live-score scrape
+// (lib/liveScoreScraper.ts), which needs more than the default timeout.
+export const maxDuration = 30;
+
 export async function GET() {
   const userId = await getSessionUserId();
   if (!userId) {

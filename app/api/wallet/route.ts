@@ -3,6 +3,10 @@ import { getSessionUserId } from "@/lib/auth";
 import { getRecentActivity, getWalletSummary, syncMatchState } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 
+// syncMatchState() can fall back to a headless-browser live-score scrape
+// (lib/liveScoreScraper.ts), which needs more than the default timeout.
+export const maxDuration = 30;
+
 export async function GET() {
   const userId = await getSessionUserId();
   if (!userId) {
