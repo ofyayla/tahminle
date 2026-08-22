@@ -18,7 +18,13 @@ const SIMULATION_FALLBACK_MS = 115 * 60 * 1000;
 // too slow to redo on every single page load. Skip it if we scraped this
 // match recently; stored on the row itself (not an in-memory cache) since
 // serverless invocations don't share memory across instances.
-const SCRAPE_THROTTLE_MS = 45 * 1000;
+//
+// Kept comfortably above the external cron's ~60s interval (cron-job.org
+// fires with its own scheduling jitter, observed up to ~27s late) — if this
+// were shorter than the real gap between cron runs, a user's own page load
+// would end up paying for the slow scrape itself during that gap, which is
+// exactly the "first load is slow" symptom the cron was meant to eliminate.
+const SCRAPE_THROTTLE_MS = 100 * 1000;
 
 function pickWeighted(weights: Record<string, number>): string {
   const entries = Object.entries(weights);
