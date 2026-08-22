@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import { fetchOddsFromBackend, type BackendOddsMatch } from "./oddsBackend";
-import { buildMatchKey } from "./matchKey";
+import { buildMatchKey, isSameFixture } from "./matchKey";
 
 const BULLETIN_URL = "https://cdnbulten.nesine.com/api/bulten/getprebultenfull";
 
@@ -109,57 +109,54 @@ export async function scrapeAndUpdateMatches() {
 
   lastSourcedExternalIds = new Set(matches.map((m) => m.externalId));
 
-  const existingRows = await prisma.match.findMany({
-    where: { externalId: { in: matches.map((m) => m.externalId) } },
+  // Reconcile against every not-yet-finished match, not just an exact
+  // externalId lookup: a source can rename a fixture's opponent mid-lifecycle
+  // (e.g. Nesine's "Erzurumspor FK" disappearing mid-match, leaving only
+  // The-Odds-API's "Erzurum BB" for the same club), which would otherwise
+  // compute a different key and duplicate the row instead of updating it.
+  const candidateRows = await prisma.match.findMany({
+    where: { status: { in: ["upcoming", "live"] } },
   });
-  const existingById = new Map(existingRows.map((row) => [row.externalId, row]));
+  const byExternalId = new Map(candidateRows.map((row) => [row.externalId, row]));
+  const claimed = new Set<string>();
 
   const results = await Promise.all(
     matches.map((m) => {
-      const existing = existingById.get(m.externalId);
+      let existing = byExternalId.get(m.externalId);
+      if (!existing) {
+        existing = candidateRows.find((row) => !claimed.has(row.id) && isSameFixture(m, row));
+      }
+      if (existing) claimed.add(existing.id);
 
-      return prisma.match.upsert({
-        where: { externalId: m.externalId },
-        update: {
-          homeTeam: m.homeTeam,
-          awayTeam: m.awayTeam,
-          kickoff: m.kickoff,
-          oddsHome: m.oddsHome,
-          oddsDraw: m.oddsDraw,
-          oddsAway: m.oddsAway,
-          prevOddsHome: existing?.oddsHome ?? null,
-          prevOddsDraw: existing?.oddsDraw ?? null,
-          prevOddsAway: existing?.oddsAway ?? null,
-          over25: m.over25,
-          under25: m.under25,
-          bttsYes: m.bttsYes,
-          bttsNo: m.bttsNo,
-          dc1X: m.dc1X,
-          dc12: m.dc12,
-          dcX2: m.dcX2,
-          extraMarkets: m.extraMarkets ?? undefined,
-          oddsUpdatedAt: new Date(),
-          status: m.kickoff.getTime() < Date.now() ? "live" : "upcoming",
-        },
-        create: {
-          externalId: m.externalId,
-          homeTeam: m.homeTeam,
-          awayTeam: m.awayTeam,
-          league: m.league,
-          kickoff: m.kickoff,
-          oddsHome: m.oddsHome,
-          oddsDraw: m.oddsDraw,
-          oddsAway: m.oddsAway,
-          over25: m.over25,
-          under25: m.under25,
-          bttsYes: m.bttsYes,
-          bttsNo: m.bttsNo,
-          dc1X: m.dc1X,
-          dc12: m.dc12,
-          dcX2: m.dcX2,
-          extraMarkets: m.extraMarkets ?? undefined,
-          status: m.kickoff.getTime() < Date.now() ? "live" : "upcoming",
-        },
+      const data = {
+        externalId: m.externalId,
+        homeTeam: m.homeTeam,
+        awayTeam: m.awayTeam,
+        kickoff: m.kickoff,
+        oddsHome: m.oddsHome,
+        oddsDraw: m.oddsDraw,
+        oddsAway: m.oddsAway,
+        prevOddsHome: existing?.oddsHome ?? null,
+        prevOddsDraw: existing?.oddsDraw ?? null,
+        prevOddsAway: existing?.oddsAway ?? null,
+        over25: m.over25,
+        under25: m.under25,
+        bttsYes: m.bttsYes,
+        bttsNo: m.bttsNo,
+        dc1X: m.dc1X,
+        dc12: m.dc12,
+        dcX2: m.dcX2,
+        extraMarkets: m.extraMarkets ?? undefined,
+        oddsUpdatedAt: new Date(),
+        status: m.kickoff.getTime() < Date.now() ? "live" : "upcoming",
+      };
+
+      if (existing) {
+        return prisma.match.update({ where: { id: existing.id }, data });
+      }
+
+      return prisma.match.create({
+        data: { ...data, league: m.league },
       });
     })
   );

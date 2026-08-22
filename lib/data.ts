@@ -45,13 +45,16 @@ export async function getWalletSummary(userId: string) {
   }, 0);
 
   return {
+    // Toplam bakiye = kullanılabilir bakiye. Açık bir tahmine ayrılan tutar
+    // o an harcanmış sayılır — kazanılırsa kullanılabilire geri döner,
+    // kaybedilirse hiç dönmez. O yüzden sonuçlanmamışken "senin" değil.
     available: user.balance,
     lockedInOpen,
-    total: user.balance + lockedInOpen,
+    total: user.balance,
     potentialReturn,
     openCount: openPredictions.length,
     weekChange,
-    totalNet: user.balance + lockedInOpen - user.startBalance,
+    totalNet: user.balance - user.startBalance,
   };
 }
 

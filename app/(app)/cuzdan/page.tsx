@@ -14,8 +14,12 @@ export default async function CuzdanPage() {
     getRecentActivity(user.id),
   ]);
   const weekChangePct = user.startBalance > 0 ? (wallet.weekChange / user.startBalance) * 100 : 0;
-  const availablePct = wallet.total > 0 ? Math.round((wallet.available / wallet.total) * 100) : 0;
-  const lockedPct = wallet.total > 0 ? Math.round((wallet.lockedInOpen / wallet.total) * 100) : 0;
+  // Bu iki çubuk "şu an elindeki + açık tahminlerdeki" toplam üzerinden oran
+  // gösteriyor — toplam bakiyenin kendisi artık sadece kullanılabilir olanı
+  // yansıtıyor, ama kilitli payın görsel oranı hâlâ anlamlı olmalı.
+  const inPlayTotal = wallet.available + wallet.lockedInOpen;
+  const availablePct = inPlayTotal > 0 ? Math.round((wallet.available / inPlayTotal) * 100) : 0;
+  const lockedPct = inPlayTotal > 0 ? Math.round((wallet.lockedInOpen / inPlayTotal) * 100) : 0;
 
   return (
     <div className="flex flex-col gap-5 px-4 pt-5">

@@ -128,16 +128,27 @@ export async function settleDueMatches() {
     );
   }
 
+  let settledCount = 0;
+
   await Promise.all(
     toSettle.map(async ({ match, outcome }) => {
       const { result, resultOver25, resultBtts, homeScore, awayScore } = outcome;
 
-      await Promise.all([
-        prisma.match.update({
-          where: { id: match.id },
-          data: { status: "finished", result, resultOver25, resultBtts, homeScore, awayScore },
-        }),
-        ...match.predictions.map(async (pred) => {
+      // Atomically claim this match for settlement. `settleDueMatches` can run
+      // concurrently (overlapping requests, warm + cold instances, manual
+      // re-syncs) — without this guard, two runs that both read the match
+      // while it was still upcoming/live would both credit every winning
+      // prediction's payout, double-paying users. Only the run whose
+      // updateMany actually flips the status (count > 0) proceeds.
+      const claim = await prisma.match.updateMany({
+        where: { id: match.id, status: { in: ["upcoming", "live"] } },
+        data: { status: "finished", result, resultOver25, resultBtts, homeScore, awayScore },
+      });
+      if (claim.count === 0) return;
+      settledCount++;
+
+      await Promise.all(
+        match.predictions.map(async (pred) => {
           let won: boolean;
           if (pred.market === "EXTRA") {
             // Maç Skoru: only ever wins against a confirmed real scoreline.
@@ -148,24 +159,26 @@ export async function settleDueMatches() {
           }
           const payout = won ? Math.round(pred.stake * pred.oddsAtPick) : 0;
 
-          await Promise.all([
-            prisma.prediction.update({
-              where: { id: pred.id },
-              data: { status: won ? "won" : "lost", payout, settledAt: new Date() },
-            }),
-            won
-              ? prisma.user.update({
-                  where: { id: pred.userId },
-                  data: { balance: { increment: payout } },
-                })
-              : Promise.resolve(),
-          ]);
-        }),
-      ]);
+          // Same guard, per-prediction: only credit balance if this call is
+          // the one that actually transitions it out of "open".
+          const predClaim = await prisma.prediction.updateMany({
+            where: { id: pred.id, status: "open" },
+            data: { status: won ? "won" : "lost", payout, settledAt: new Date() },
+          });
+          if (predClaim.count === 0) return;
+
+          if (won) {
+            await prisma.user.update({
+              where: { id: pred.userId },
+              data: { balance: { increment: payout } },
+            });
+          }
+        })
+      );
     })
   );
 
-  return toSettle.length;
+  return settledCount;
 }
 
 // Also flip upcoming -> live once kickoff passes, for matches not yet due for settlement.
