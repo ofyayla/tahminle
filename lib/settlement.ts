@@ -1,15 +1,18 @@
 import { prisma } from "./prisma";
 import { isWinningChoice, parseScoreChoice, type MarketCode } from "./markets";
 import { fetchRealResults, findRealResult } from "./resultsBackend";
-import { isCurrentlySourced } from "./scraper";
+import { getLiveScore } from "./liveScoreScraper";
+import { TRACKED_TEAMS } from "./scraper";
 
 // If no real result is available by this long after kickoff, fall back to an
 // odds-implied simulation rather than leaving predictions stuck open forever.
-// A match the odds source has stopped listing entirely (an orphan — usually
-// a competition our results provider doesn't cover) gets a much shorter
-// grace period, since we already know no real result is ever coming.
+// Note: a match dropping out of the pre-match odds bulletin is NOT a useful
+// "abandoned/orphan" signal — every match does that the moment it goes live,
+// since pre-match odds stop applying. There used to be a much shorter
+// fallback window keyed off that signal, which caused essentially every live
+// match to get settled by simulation ~20 minutes after kickoff, while it was
+// still being played. Always give the full grace period instead.
 const SIMULATION_FALLBACK_MS = 115 * 60 * 1000;
-const ORPHAN_FALLBACK_MS = 20 * 60 * 1000;
 
 function pickWeighted(weights: Record<string, number>): string {
   const entries = Object.entries(weights);
@@ -103,9 +106,8 @@ export async function settleDueMatches() {
     }
 
     const elapsed = now - match.kickoff.getTime();
-    const fallbackWindow = isCurrentlySourced(match.externalId) ? SIMULATION_FALLBACK_MS : ORPHAN_FALLBACK_MS;
 
-    if (elapsed > fallbackWindow) {
+    if (elapsed > SIMULATION_FALLBACK_MS) {
       toSettle.push({ match, outcome: simulateOutcome(match) });
       continue;
     }
@@ -114,6 +116,18 @@ export async function settleDueMatches() {
     // surface it as "canlı skor" without settling anything yet.
     if (real && real.homeScore != null && real.awayScore != null) {
       liveScoreUpdates.push({ matchId: match.id, homeScore: real.homeScore, awayScore: real.awayScore });
+      continue;
+    }
+
+    // The results API has no live score for this one (e.g. its quota is
+    // exhausted) — fall back to scraping Nesine's live page. Display only:
+    // a missed/failed scrape just means no update this cycle, never "over".
+    const trackedTeam = TRACKED_TEAMS.find((t) => match.homeTeam.includes(t) || match.awayTeam.includes(t));
+    if (trackedTeam) {
+      const scraped = await getLiveScore(trackedTeam, match.id).catch(() => null);
+      if (scraped) {
+        liveScoreUpdates.push({ matchId: match.id, homeScore: scraped.homeScore, awayScore: scraped.awayScore });
+      }
     }
   }
 

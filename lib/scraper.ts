@@ -4,7 +4,7 @@ import { buildMatchKey, isSameFixture } from "./matchKey";
 
 const BULLETIN_URL = "https://cdnbulten.nesine.com/api/bulten/getprebultenfull";
 
-const TRACKED_TEAMS = ["Galatasaray", "Fenerbahçe", "Beşiktaş"];
+export const TRACKED_TEAMS = ["Galatasaray", "Fenerbahçe", "Beşiktaş"];
 const MATCH_WINNER_MARKET = 1; // MTID for 1-X-2 (Maç Sonucu)
 
 type NesineOdd = { N: number; O: number };
@@ -92,22 +92,9 @@ async function fetchTrackedMatches(): Promise<BackendOddsMatch[]> {
   return fetchFromNesine();
 }
 
-// The set of externalIds the odds source actually returned on the most
-// recent successful scrape. A match that has kicked off but has dropped out
-// of this set (e.g. a competition our results provider doesn't cover, or the
-// source simply stopped listing it) will never receive fresh odds or a real
-// result again — settlement treats that as a signal to stop waiting.
-let lastSourcedExternalIds: Set<string> = new Set();
-
-export function isCurrentlySourced(externalId: string): boolean {
-  return lastSourcedExternalIds.has(externalId);
-}
-
 export async function scrapeAndUpdateMatches() {
   const matches = await fetchTrackedMatches();
   if (matches.length === 0) return [];
-
-  lastSourcedExternalIds = new Set(matches.map((m) => m.externalId));
 
   // Reconcile against every not-yet-finished match, not just an exact
   // externalId lookup: a source can rename a fixture's opponent mid-lifecycle
