@@ -54,21 +54,37 @@ export function isSameTeamName(a: string, b: string): boolean {
   return shorter.length >= 4 && longer.includes(shorter);
 }
 
+// Esports/virtual football fixtures (FIFA/eFootball-style) get listed under
+// real club names with a player codename appended in parentheses — e.g.
+// "Feyenoord Rotterdam (Tiago)", "Club Brugge (Voodoo)" — often in rapid
+// clusters of matches minutes apart. They pass the GS/FB/BJK name filter
+// just like a real fixture, and their `league` is frequently mislabeled with
+// the same generic fallback used for real UEFA matches, so team-name shape
+// is the only reliable signal to exclude them by.
+export function isVirtualFixture(homeTeam: string, awayTeam: string): boolean {
+  return /\([^)]+\)/.test(homeTeam) || /\([^)]+\)/.test(awayTeam);
+}
+
 const FIXTURE_WINDOW_MS = 36 * 60 * 60 * 1000;
 
 // Whether two {homeTeam, awayTeam, kickoff} records plausibly describe the
-// same real-world fixture — only one side needs to match by name (the
-// tracked GS/FB/BJK club is named consistently; the opponent isn't), plus a
-// generous kickoff window to absorb minor time disagreements between sources.
+// same real-world fixture, tolerating providers who spell one side's club
+// differently (e.g. "Erzurumspor FK" vs "Erzurum BB") and who occasionally
+// swap which side is listed as home/away.
+//
+// BOTH sides must correspond — matching on just one shared name is not
+// enough. GS/FB/BJK play multiple different fixtures within any given
+// 36-hour window across a season (e.g. a European away leg Thursday, a
+// league match Saturday); requiring only one side to match previously
+// treated those as the *same* fixture purely because the tracked club's
+// name appeared in both, silently overwriting one match's row (and its
+// already-placed predictions) with the other's data.
 export function isSameFixture(
   a: { homeTeam: string; awayTeam: string; kickoff: Date },
   b: { homeTeam: string; awayTeam: string; kickoff: Date }
 ): boolean {
   if (Math.abs(a.kickoff.getTime() - b.kickoff.getTime()) > FIXTURE_WINDOW_MS) return false;
-  return (
-    isSameTeamName(a.homeTeam, b.homeTeam) ||
-    isSameTeamName(a.homeTeam, b.awayTeam) ||
-    isSameTeamName(a.awayTeam, b.homeTeam) ||
-    isSameTeamName(a.awayTeam, b.awayTeam)
-  );
+  const straight = isSameTeamName(a.homeTeam, b.homeTeam) && isSameTeamName(a.awayTeam, b.awayTeam);
+  const swapped = isSameTeamName(a.homeTeam, b.awayTeam) && isSameTeamName(a.awayTeam, b.homeTeam);
+  return straight || swapped;
 }

@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import { fetchOddsFromBackend, type BackendOddsMatch } from "./oddsBackend";
-import { buildMatchKey, isSameFixture } from "./matchKey";
+import { buildMatchKey, isSameFixture, isVirtualFixture } from "./matchKey";
 
 const BULLETIN_URL = "https://cdnbulten.nesine.com/api/bulten/getprebultenfull";
 
@@ -43,7 +43,7 @@ async function fetchFromNesine(): Promise<BackendOddsMatch[]> {
   const events: NesineEvent[] = data?.sg?.EA ?? [];
 
   const footballMatches = events.filter(
-    (e) => e.GT === 1 && e.HN && e.AN && isTrackedMatch(e.HN, e.AN)
+    (e) => e.GT === 1 && e.HN && e.AN && isTrackedMatch(e.HN, e.AN) && !isVirtualFixture(e.HN, e.AN)
   );
 
   const results: BackendOddsMatch[] = [];

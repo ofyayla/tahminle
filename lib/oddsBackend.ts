@@ -1,4 +1,4 @@
-import { buildMatchKey } from "./matchKey";
+import { buildMatchKey, isVirtualFixture } from "./matchKey";
 
 const BACKEND_BASE_URL = "https://superlig-odds-backend.vercel.app";
 
@@ -108,6 +108,9 @@ export async function fetchOddsFromBackend(): Promise<BackendOddsMatch[]> {
       if (!primary) return null;
       const homeTeam = normalizeTeamName(m.home_team);
       const awayTeam = normalizeTeamName(m.away_team);
+      // Esports/virtual fixtures (real club name + "(Codename)") — not a
+      // real match, never covered by the results provider.
+      if (isVirtualFixture(homeTeam, awayTeam)) return null;
       const kickoff = new Date(m.kickoff_time);
       return {
         externalId: buildMatchKey(homeTeam, awayTeam, kickoff),
