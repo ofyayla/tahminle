@@ -119,6 +119,7 @@ export async function scrapeAndUpdateMatches() {
         externalId: m.externalId,
         homeTeam: m.homeTeam,
         awayTeam: m.awayTeam,
+        league: m.league,
         kickoff: m.kickoff,
         oddsHome: m.oddsHome,
         oddsDraw: m.oddsDraw,
@@ -142,9 +143,7 @@ export async function scrapeAndUpdateMatches() {
         return prisma.match.update({ where: { id: existing.id }, data });
       }
 
-      return prisma.match.create({
-        data: { ...data, league: m.league },
-      });
+      return prisma.match.create({ data });
     })
   );
 
