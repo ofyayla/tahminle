@@ -31,6 +31,7 @@ export async function getWalletSummary(userId: string) {
     prisma.prediction.findMany({ where: { userId, status: "open" } }),
     prisma.prediction.findMany({
       where: { userId, status: { in: ["won", "lost"] }, settledAt: { gte: weekAgo } },
+      include: { gift: { select: { id: true } } },
     }),
   ]);
 
@@ -40,8 +41,11 @@ export async function getWalletSummary(userId: string) {
     0
   );
   const weekChange = settledThisWeek.reduce((sum, p) => {
-    if (p.status === "won") return sum + (p.payout ?? 0) - p.stake;
-    return sum - p.stake;
+    // A gifted prediction's stake came out of the sender's balance, never this
+    // user's — so a losing gift costs them nothing and only the payout counts.
+    const cost = p.gift ? 0 : p.stake;
+    if (p.status === "won") return sum + (p.payout ?? 0) - cost;
+    return sum - cost;
   }, 0);
 
   return {
@@ -77,12 +81,15 @@ export async function getPerformanceStats(userId: string) {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const predictions = await prisma.prediction.findMany({
     where: { userId, createdAt: { gte: thirtyDaysAgo } },
+    include: { gift: { select: { id: true } } },
   });
   const settled = predictions.filter((p) => p.status !== "open");
   const won = predictions.filter((p) => p.status === "won");
   const netEffect = settled.reduce((sum, p) => {
-    if (p.status === "won") return sum + (p.payout ?? 0) - p.stake;
-    return sum - p.stake;
+    // Gifted predictions were paid for by the sender — see getWalletSummary.
+    const cost = p.gift ? 0 : p.stake;
+    if (p.status === "won") return sum + (p.payout ?? 0) - cost;
+    return sum - cost;
   }, 0);
 
   return {

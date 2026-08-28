@@ -1,8 +1,13 @@
 import { getCurrentUser } from "@/lib/auth";
 import { getRecentActivity, getWalletSummary, syncMatchState } from "@/lib/data";
+import { getTransferHistory, getTransferTargets } from "@/lib/transfers";
+import { getGiftsFor } from "@/lib/gifts";
+import { getChoiceLabel, getMarketName, type MarketCode } from "@/lib/markets";
 import { formatTL } from "@/lib/format";
 import ActivityFeed from "@/components/ActivityFeed";
 import InfoAccordion from "@/components/InfoAccordion";
+import TransferPanel from "@/components/TransferPanel";
+import GiftPanel from "@/components/GiftPanel";
 
 // syncMatchState() can fall back to a headless-browser live-score scrape
 // (lib/liveScoreScraper.ts), which needs more than the default timeout.
@@ -13,10 +18,47 @@ export default async function CuzdanPage() {
   if (!user) return null;
 
   await syncMatchState();
-  const [wallet, activity] = await Promise.all([
+  const [wallet, activity, transferTargets, transferHistory, gifts] = await Promise.all([
     getWalletSummary(user.id),
     getRecentActivity(user.id),
+    getTransferTargets(user.id),
+    getTransferHistory(user.id),
+    getGiftsFor(user.id),
   ]);
+
+  // Unopened gifts must not leak their selection into the page payload, so
+  // the pick is only attached once the recipient has actually opened it.
+  const receivedGifts = gifts.received.map((g) => ({
+    id: g.id,
+    from: g.sender.displayName,
+    price: g.price,
+    stake: g.stake,
+    opened: g.openedAt != null,
+    createdAt: g.createdAt.toISOString(),
+    pick: g.openedAt
+      ? {
+          match: `${g.prediction.match.homeTeam} – ${g.prediction.match.awayTeam}`,
+          kickoff: g.prediction.match.kickoff.toISOString(),
+          market: getMarketName(g.prediction.market as MarketCode),
+          label: getChoiceLabel(g.prediction.match, g.prediction.market as MarketCode, g.prediction.choice),
+          odds: g.prediction.oddsAtPick,
+          status: g.prediction.status,
+          payout: g.prediction.payout,
+        }
+      : null,
+  }));
+
+  const sentGifts = gifts.sent.map((g) => ({
+    id: g.id,
+    to: g.recipient.displayName,
+    price: g.price,
+    fee: g.fee,
+    opened: g.openedAt != null,
+    match: `${g.prediction.match.homeTeam} – ${g.prediction.match.awayTeam}`,
+    label: getChoiceLabel(g.prediction.match, g.prediction.market as MarketCode, g.prediction.choice),
+    odds: g.prediction.oddsAtPick,
+    status: g.prediction.status,
+  }));
   const weekChangePct = user.startBalance > 0 ? (wallet.weekChange / user.startBalance) * 100 : 0;
   // Bu iki çubuk "şu an elindeki + açık tahminlerdeki" toplam üzerinden oran
   // gösteriyor — toplam bakiyenin kendisi artık sadece kullanılabilir olanı
@@ -124,6 +166,19 @@ export default async function CuzdanPage() {
           </div>
         </div>
       </section>
+
+      <TransferPanel
+        targets={transferTargets}
+        history={transferHistory.map((h) => ({ ...h, createdAt: h.createdAt.toISOString() }))}
+        available={wallet.available}
+      />
+
+      <GiftPanel
+        targets={transferTargets}
+        received={receivedGifts}
+        sent={sentGifts}
+        available={wallet.available}
+      />
 
       <ActivityFeed items={activity} />
 

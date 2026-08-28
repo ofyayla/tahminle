@@ -4,6 +4,7 @@ import Countdown from "./Countdown";
 import LiveMinute from "./LiveMinute";
 import CommunityPulseBar from "./CommunityPulseBar";
 import ExtraMarketsPanel from "./ExtraMarketsPanel";
+import AiAnalysisPanel from "./AiAnalysisPanel";
 import { formatMatchDate, formatTime } from "@/lib/format";
 import { getChoiceLabel, getMarketName, type MarketCode } from "@/lib/markets";
 import type { MatchDTO } from "@/lib/types";
@@ -101,6 +102,7 @@ export default function MatchCard({
       )}
 
       <ExtraMarketsPanel match={match} matchClosed={bettingClosed} onPick={onPick} />
+      <AiAnalysisPanel analysis={match.aiAnalysis} />
       <CommunityPulseBar pulse={match.pulse} />
     </div>
   );

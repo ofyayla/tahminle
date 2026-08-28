@@ -22,6 +22,53 @@ model User {
   createdAt    DateTime @default(now())
 
   predictions Prediction[]
+
+  sentTransfers     Transfer[] @relation("SentTransfers")
+  receivedTransfers Transfer[] @relation("ReceivedTransfers")
+  sentGifts         Gift[]     @relation("SentGifts")
+  receivedGifts     Gift[]     @relation("ReceivedGifts")
+}
+
+// A direct virtual-balance transfer between two players. Kept as its own row
+// (rather than only mutating balances) so the wallet can show an audit trail
+// and so a transfer is never confused with prediction winnings.
+model Transfer {
+  id          String   @id @default(cuid())
+  senderId    String
+  recipientId String
+  amount      Int
+  note        String?
+  createdAt   DateTime @default(now())
+
+  sender    User @relation("SentTransfers", fields: [senderId], references: [id])
+  recipient User @relation("ReceivedTransfers", fields: [recipientId], references: [id])
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([createdAt])
+}
+
+// A "sürpriz kupon": the sender pays `price`, the house keeps `fee`, and the
+// rest is staked on a randomly drawn prediction created in the RECIPIENT's
+// name. The recipient can't see which selection they got until they open it.
+model Gift {
+  id           String    @id @default(cuid())
+  senderId     String
+  recipientId  String
+  price        Int // total charged to the sender
+  fee          Int // packaging fee, not staked
+  stake        Int // price - fee
+  predictionId String    @unique
+  openedAt     DateTime?
+  createdAt    DateTime  @default(now())
+
+  sender     User       @relation("SentGifts", fields: [senderId], references: [id])
+  recipient  User       @relation("ReceivedGifts", fields: [recipientId], references: [id])
+  prediction Prediction @relation(fields: [predictionId], references: [id])
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([createdAt])
 }
 
 model Match {
@@ -61,6 +108,13 @@ model Match {
   // needing an in-memory cache that wouldn't survive across serverless
   // instances anyway.
   liveScoreUpdatedAt DateTime?
+
+  // Short AI-written pre-match note (lib/aiAnalysis.ts). Generated in the
+  // background by the cron, never on a page load — producing one takes
+  // several seconds of model + web-search time.
+  aiAnalysis   String?
+  aiAnalysisAt DateTime?
+
   createdAt     DateTime @default(now())
 
   predictions Prediction[]
@@ -81,6 +135,7 @@ model Prediction {
 
   user  User  @relation(fields: [userId], references: [id])
   match Match @relation(fields: [matchId], references: [id])
+  gift  Gift?
 
   @@index([userId])
   @@index([matchId])
