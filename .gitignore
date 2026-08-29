@@ -45,3 +45,8 @@ next-env.d.ts
 # sqlite (legacy local dev db, no longer used — Postgres now)
 prisma/*.db
 prisma/*.db-journal
+
+# editor swap/backup files
+*.swp
+*.swo
+*~
