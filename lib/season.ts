@@ -3,7 +3,7 @@ import { prisma } from "./prisma";
 // Turkey has not observed daylight saving since 2016 — the offset is a flat
 // UTC+3 all year, so week/season boundaries need no timezone database.
 const ISTANBUL_OFFSET_MS = 3 * 60 * 60 * 1000;
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 // A maç haftası (Faz 1, madde 01): Monday 00:00 → Sunday 23:59 Istanbul time,
 // independent of any season anchor — pure calendar math, valid for any date.

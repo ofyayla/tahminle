@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth";
 import { getOddsFor, isValidChoice, type MarketCode } from "@/lib/markets";
 import { getPerformanceStats, getPredictions, syncMatchState } from "@/lib/data";
-import { PER_MATCH_CAP, WEEKLY_BUDGET, weekEndFor, weekStartFor } from "@/lib/season";
+import { PER_MATCH_CAP, weekEndFor, weekStartFor } from "@/lib/season";
+import { weeklyBudgetCapFor } from "@/lib/perks";
+import { BankoLockedError, setWeeklyBanko } from "@/lib/banko";
 import type { PredictionDTO } from "@/lib/predictionTypes";
 
 // syncMatchState() can fall back to a headless-browser live-score scrape
@@ -33,6 +35,8 @@ export async function GET() {
     oddsAtPick: p.oddsAtPick,
     status: p.status as PredictionDTO["status"],
     payout: p.payout,
+    isBanko: p.isBanko,
+    wasInsured: p.wasInsured,
     createdAt: p.createdAt.toISOString(),
     settledAt: p.settledAt ? p.settledAt.toISOString() : null,
     match: {
@@ -60,6 +64,9 @@ const schema = z.object({
   market: z.enum(["1X2", "OU25", "BTTS", "DC", "EXTRA"]).default("1X2"),
   choice: z.string().min(1).max(200),
   stake: z.number().int().min(10).max(100000),
+  // Mark this pick as the week's Banko right at creation — lib/banko.ts
+  // enforces the "at most one per week" rule either way.
+  isBanko: z.boolean().optional().default(false),
 });
 
 export async function POST(req: NextRequest) {
@@ -74,7 +81,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Geçersiz tahmin bilgisi." }, { status: 400 });
   }
 
-  const { matchId, market, choice, stake } = parsed.data;
+  const { matchId, market, choice, stake, isBanko } = parsed.data;
 
   if (!isValidChoice(market as MarketCode, choice)) {
     return NextResponse.json({ error: "Geçersiz seçim." }, { status: 400 });
@@ -140,11 +147,12 @@ export async function POST(req: NextRequest) {
   ]);
   const weeklyUsed = weeklyUsedRows.reduce((sum, r) => sum + r.stake, 0);
   const matchUsed = matchUsedRows.reduce((sum, r) => sum + r.stake, 0);
+  const weeklyCap = await weeklyBudgetCapFor(userId, weekStart);
 
-  if (weeklyUsed + stake > WEEKLY_BUDGET) {
+  if (weeklyUsed + stake > weeklyCap) {
     return NextResponse.json(
       {
-        error: `Bu hafta için kasan ₺${WEEKLY_BUDGET - weeklyUsed} kaldı. Kasa her Pazartesi yenilenir.`,
+        error: `Bu hafta için kasan ₺${weeklyCap - weeklyUsed} kaldı. Kasa her Pazartesi yenilenir.`,
       },
       { status: 400 }
     );
@@ -158,6 +166,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  let bankoError: string | null = null;
+
   const result = await prisma.$transaction(async (tx) => {
     const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
     if (user.balance < stake) {
@@ -169,9 +179,26 @@ export async function POST(req: NextRequest) {
       data: { balance: { decrement: stake } },
     });
 
-    return tx.prediction.create({
+    const prediction = await tx.prediction.create({
       data: { userId, matchId, market, choice, stake, oddsAtPick },
     });
+
+    if (isBanko) {
+      try {
+        await setWeeklyBanko(tx, userId, prediction.id);
+      } catch (err) {
+        if (err instanceof BankoLockedError) {
+          // The pick itself is still valid — only the Banko flag failed —
+          // so let the transaction commit and surface this as a warning
+          // rather than losing the stake the user just committed.
+          bankoError = err.message;
+          return prediction;
+        }
+        throw err;
+      }
+    }
+
+    return prediction;
   }).catch((err) => {
     if (err instanceof Error && err.message === "INSUFFICIENT_BALANCE") {
       return null;
@@ -186,5 +213,5 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ ok: true, prediction: result });
+  return NextResponse.json({ ok: true, prediction: result, bankoError });
 }

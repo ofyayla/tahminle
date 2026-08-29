@@ -26,8 +26,10 @@ export default async function TahminlerPage() {
     choice: p.choice,
     stake: p.stake,
     oddsAtPick: p.oddsAtPick,
-    status: p.status as "open" | "won" | "lost",
+    status: p.status as PredictionDTO["status"],
     payout: p.payout,
+    isBanko: p.isBanko,
+    wasInsured: p.wasInsured,
     createdAt: p.createdAt.toISOString(),
     settledAt: p.settledAt ? p.settledAt.toISOString() : null,
     match: {

@@ -10,6 +10,8 @@ import {
   weekEndFor,
   weekStartFor,
 } from "./season";
+import { awardSeasonChampionIfDue, awardWeeklyChampionIfDue } from "./weeklyChampion";
+import { DOUBLE_KASA_MULTIPLIER, boostedWeekStarts, weeklyBudgetCapFor } from "./perks";
 
 export async function syncMatchState() {
   try {
@@ -26,6 +28,17 @@ export async function syncMatchState() {
   // app after the boundary, not up to ~60s later.
   await applyPeriodicAdjustments().catch((err) =>
     console.error("Haftalık/sezonluk bakiye güncellemesi başarısız:", err)
+  );
+
+  // Aynı sebeple: haftanın/sezonun birincisi ödülü, Pazartesi 09:00 sınırı
+  // geçer geçmez ilk isteği yapan kullanıcının kendisi tarafından tetiklenir.
+  // Her ikisi de kendi idempotency guard'ını taşıyor (WeeklyChampion/
+  // SeasonChampion'daki unique alan), bu yüzden sık çağrılmaları güvenli.
+  await awardWeeklyChampionIfDue().catch((err) =>
+    console.error("Haftanın birincisi ödülü başarısız:", err)
+  );
+  await awardSeasonChampionIfDue().catch((err) =>
+    console.error("Sezon birincisi ödülü başarısız:", err)
   );
 }
 
@@ -84,7 +97,8 @@ export async function getWeeklyBudgetBreakdown(
   }
 
   const byMatch = [...byMatchMap.values()].sort((a, b) => b.stake - a.stake);
-  return { ...toBudget(WEEKLY_BUDGET, used), byMatch };
+  const cap = await weeklyBudgetCapFor(userId, weekStartFor(now));
+  return { ...toBudget(cap, used), byMatch };
 }
 
 // Per-match and per-match's-week budgets for a batch of matches, keyed by
@@ -121,10 +135,16 @@ export async function getMatchBudgets(
     perWeek.set(weekKey, (perWeek.get(weekKey) ?? 0) + r.stake);
   }
 
+  const distinctWeekStarts = [...new Set(matches.map((m) => weekStartFor(m.kickoff).getTime()))].map(
+    (ms) => new Date(ms)
+  );
+  const boosted = await boostedWeekStarts(userId, distinctWeekStarts);
+
   for (const m of matches) {
     const weekKey = weekStartFor(m.kickoff).getTime();
+    const cap = boosted.has(weekKey) ? WEEKLY_BUDGET * DOUBLE_KASA_MULTIPLIER : WEEKLY_BUDGET;
     result.set(m.id, {
-      weekBudget: toBudget(WEEKLY_BUDGET, perWeek.get(weekKey) ?? 0),
+      weekBudget: toBudget(cap, perWeek.get(weekKey) ?? 0),
       matchBudget: toBudget(PER_MATCH_CAP, perMatch.get(m.id) ?? 0),
     });
   }
@@ -153,8 +173,10 @@ export async function getWalletSummary(userId: string) {
     // A gifted prediction's stake came out of the sender's balance, never this
     // user's — so a losing gift costs them nothing and only the payout counts.
     const cost = p.gift ? 0 : p.stake;
-    if (p.status === "won") return sum + (p.payout ?? 0) - cost;
-    return sum - cost;
+    // Uniform for won/lost: payout is 0 for a plain loss (net = -cost), the
+    // refunded stake for a sigorta-covered loss (net = 0), and the (possibly
+    // Banko-doubled) winnings for a win — no per-status branching needed.
+    return sum + (p.payout ?? 0) - cost;
   }, 0);
 
   return {
@@ -197,12 +219,11 @@ export async function getPerformanceStats(userId: string) {
   const won = predictions.filter((p) => p.status === "won");
   const netEffect = settled.reduce((sum, p) => {
     // A cancelled (postponed match) prediction was refunded in full — no net
-    // effect either way, so it must not fall into the "lost" branch below.
+    // effect either way, so it must not fall into the uniform math below.
     if (p.status === "cancelled") return sum;
     // Gifted predictions were paid for by the sender — see getWalletSummary.
     const cost = p.gift ? 0 : p.stake;
-    if (p.status === "won") return sum + (p.payout ?? 0) - cost;
-    return sum - cost;
+    return sum + (p.payout ?? 0) - cost;
   }, 0);
 
   return {
@@ -214,7 +235,7 @@ export async function getPerformanceStats(userId: string) {
 
 export type ActivityItem = {
   id: string;
-  kind: "system" | "lock" | "win" | "loss" | "cancel";
+  kind: "system" | "lock" | "win" | "loss" | "cancel" | "insured";
   title: string;
   subtitle: string;
   amount: number;
@@ -245,12 +266,19 @@ export async function getRecentActivity(userId: string, limit = 6): Promise<Acti
 
     if (p.status !== "open" && p.settledAt) {
       const cancelled = p.status === "cancelled";
+      const insuredLoss = p.status === "lost" && p.wasInsured;
       items.push({
         id: `${p.id}-settle`,
-        kind: cancelled ? "cancel" : p.status === "won" ? "win" : "loss",
+        kind: cancelled ? "cancel" : insuredLoss ? "insured" : p.status === "won" ? "win" : "loss",
         title: cancelled ? `${label} ertelendi` : `${label} sonucu işlendi`,
-        subtitle: cancelled ? "İade edildi" : "Maç sonucu",
-        amount: cancelled ? p.stake : p.status === "won" ? (p.payout ?? 0) : -p.stake,
+        subtitle: cancelled ? "İade edildi" : insuredLoss ? "Sigortalı · iade aldın" : "Maç sonucu",
+        amount: cancelled
+          ? p.stake
+          : insuredLoss
+          ? p.payout ?? p.stake
+          : p.status === "won"
+          ? (p.payout ?? 0)
+          : -p.stake,
         at: p.settledAt,
       });
     }
@@ -404,9 +432,14 @@ function buildScope(
 // predictions) — bakiye değil, isabet konuşuyor. Season always fully
 // contains its weeks, so a single season-range query is bucketed in memory
 // for the week scope instead of running the query twice.
+//
+// `memberIds`, when given, scopes both the roster and the tally to that set
+// — this is the entire mechanism behind a league's leaderboard (Faz 3):
+// same ranking, same net-kâr math, just restricted to the league's members.
 export async function getLeaderboard(
   currentUserId: string,
-  now: Date = new Date()
+  now: Date = new Date(),
+  memberIds?: string[]
 ): Promise<{ week: LeaderboardScope; season: LeaderboardScope }> {
   const weekStart = weekStartFor(now);
   const weekEnd = weekEndFor(now);
@@ -414,12 +447,16 @@ export async function getLeaderboard(
   const seasonEnd = seasonEndFor(now);
 
   const [users, seasonPredictions] = await Promise.all([
-    prisma.user.findMany({ select: { id: true, displayName: true, favoriteTeam: true } }),
+    prisma.user.findMany({
+      where: memberIds ? { id: { in: memberIds } } : undefined,
+      select: { id: true, displayName: true, favoriteTeam: true },
+    }),
     prisma.prediction.findMany({
       where: {
         status: { in: ["won", "lost"] },
         gift: { is: null },
         match: { kickoff: { gte: seasonStart, lt: seasonEnd } },
+        ...(memberIds ? { userId: { in: memberIds } } : {}),
       },
       select: { userId: true, status: true, stake: true, payout: true, match: { select: { kickoff: true } } },
     }),
@@ -433,12 +470,11 @@ export async function getLeaderboard(
     for (const tally of inThisWeek ? [seasonTally, weekTally] : [seasonTally]) {
       const bucket = tally.get(p.userId) ?? { net: 0, correct: 0, total: 0 };
       bucket.total++;
-      if (p.status === "won") {
-        bucket.correct++;
-        bucket.net += (p.payout ?? 0) - p.stake;
-      } else {
-        bucket.net -= p.stake;
-      }
+      if (p.status === "won") bucket.correct++;
+      // Uniform for won/lost: payout is 0 for a plain loss, the refunded
+      // stake for a sigorta-covered one, and the (possibly Banko-doubled)
+      // winnings for a win.
+      bucket.net += (p.payout ?? 0) - p.stake;
       tally.set(p.userId, bucket);
     }
   }

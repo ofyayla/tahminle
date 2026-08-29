@@ -39,6 +39,12 @@ model User {
   receivedGifts     Gift[]     @relation("ReceivedGifts")
   pushTokens        PushToken[]
   oauthAccounts     OAuthAccount[]
+
+  weeklyChampionships WeeklyChampion[]
+  seasonChampionships SeasonChampion[]
+  seasonPerks         SeasonPerk[]
+  ownedLeagues        League[]           @relation("LeagueOwner")
+  leagueMemberships   LeagueMembership[]
 }
 
 // A third-party identity linked to a user (Google, Apple). Kept as its own
@@ -206,10 +212,107 @@ model Prediction {
   createdAt  DateTime  @default(now())
   settledAt  DateTime?
 
+  // This week's Banko (lib/banko.ts enforces at most one true per user per
+  // week — there's no DB constraint for it since "week" isn't a stored
+  // column, only derived from the match's kickoff). A won Banko's payout is
+  // doubled at settlement; a lost one costs exactly what any other pick would.
+  isBanko Boolean @default(false)
+
+  // Set by settlement.ts when this pick lost but was covered by the sigorta
+  // joker (lib/perks.ts) — the stake was refunded (payout = stake) rather
+  // than lost, and status stays "lost" since the pick itself was still wrong.
+  // Denormalized here (rather than joined from SeasonPerk at read time) so
+  // every wallet/leaderboard/activity read site can branch on it directly.
+  wasInsured Boolean @default(false)
+
   user  User  @relation(fields: [userId], references: [id])
   match Match @relation(fields: [matchId], references: [id])
   gift  Gift?
 
   @@index([userId])
   @@index([matchId])
+}
+
+// One row per Pazartesi 09:00 award — the player with the highest net kâr
+// over the week that just closed. `weekStart` is unique so the award itself
+// doubles as the idempotency guard: awardWeeklyChampionIfDue() creates this
+// row inside a try/catch on the unique-constraint violation, so a race
+// between overlapping cron/page-load ticks can only ever award once.
+model WeeklyChampion {
+  id        String   @id @default(cuid())
+  userId    String
+  weekStart DateTime @unique
+  net       Int
+  bonus     Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+// Same idea as WeeklyChampion, but for the season that just closed — awarded
+// alongside the season-boundary balance reset in applyPeriodicAdjustments.
+model SeasonChampion {
+  id          String   @id @default(cuid())
+  userId      String
+  seasonStart DateTime @unique
+  net         Int
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+// One row per joker actually used. `kind` is "double_kasa" | "insurance".
+// The @@unique on (userId, seasonStart, kind) is the enforcement mechanism
+// for "once per season, per joker" — activating a joker is a `create` that
+// either succeeds or throws a unique-constraint error, no separate
+// check-then-write race to guard against.
+model SeasonPerk {
+  id          String   @id @default(cuid())
+  userId      String
+  seasonStart DateTime
+  kind        String
+  // double_kasa: which week's kasa it doubles.
+  weekStart   DateTime?
+  // insurance: which prediction it protects. Unique so a prediction can only
+  // ever be insured once (redundant with the per-season unique above, since
+  // that already caps a user to one insurance activation per season, but
+  // keeps the column's own meaning airtight).
+  predictionId String?  @unique
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, seasonStart, kind])
+  @@index([userId])
+}
+
+// A private, invite-code-joined mini league. Ranking within it reuses the
+// same net-kâr leaderboard logic as the global board, just scoped to member
+// ids — there is no separate scoring system for leagues.
+model League {
+  id         String   @id @default(cuid())
+  name       String
+  inviteCode String   @unique
+  ownerId    String
+  createdAt  DateTime @default(now())
+
+  owner   User               @relation("LeagueOwner", fields: [ownerId], references: [id])
+  members LeagueMembership[]
+}
+
+model LeagueMembership {
+  id       String   @id @default(cuid())
+  leagueId String
+  userId   String
+  joinedAt DateTime @default(now())
+
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([leagueId, userId])
+  @@index([userId])
 }

@@ -109,10 +109,30 @@ export async function settleDueMatches() {
       status: { in: ["upcoming", "live"] },
       kickoff: { lt: new Date(now) },
     },
-    include: { predictions: { where: { status: "open" } } },
+    include: {
+      predictions: {
+        where: { status: "open" },
+        // gift.senderId: a cancelled gift pick refunds the sender (who
+        // actually paid for it), never the recipient (see toCancel below).
+        include: { gift: { select: { senderId: true } } },
+      },
+    },
   });
 
   if (startedMatches.length === 0) return 0;
+
+  // Sigorta jokeri kullanılmış açık tahminler — bu turda kaybeden bir
+  // tahmin bu sette varsa iade edilecek. Tek sorguda toplanır, per-tahmin
+  // ayrı bir sorguya gerek kalmaz.
+  const openPredictionIds = startedMatches.flatMap((m) => m.predictions.map((p) => p.id));
+  const insuredPredictionIds = new Set(
+    (
+      await prisma.seasonPerk.findMany({
+        where: { kind: "insurance", predictionId: { in: openPredictionIds } },
+        select: { predictionId: true },
+      })
+    ).map((r) => r.predictionId!)
+  );
 
   let realResults: Awaited<ReturnType<typeof fetchRealResults>> = [];
   try {
@@ -259,17 +279,27 @@ export async function settleDueMatches() {
           } else {
             won = isWinningChoice(pred.market as MarketCode, pred.choice, { result, resultOver25, resultBtts });
           }
-          const payout = won ? Math.round(pred.stake * pred.oddsAtPick) : 0;
+
+          const insured = !won && insuredPredictionIds.has(pred.id);
+          // Banko: a won pick doubles its payout — the whole point of the
+          // weekly captain's call. Sigorta: a lost pick that was insured
+          // gets its stake back instead, status still "lost" since the call
+          // itself was wrong, just covered.
+          const payout = won
+            ? Math.round(pred.stake * pred.oddsAtPick) * (pred.isBanko ? 2 : 1)
+            : insured
+            ? pred.stake
+            : 0;
 
           // Same guard, per-prediction: only credit balance if this call is
           // the one that actually transitions it out of "open".
           const predClaim = await prisma.prediction.updateMany({
             where: { id: pred.id, status: "open" },
-            data: { status: won ? "won" : "lost", payout, settledAt: new Date() },
+            data: { status: won ? "won" : "lost", payout, wasInsured: insured, settledAt: new Date() },
           });
           if (predClaim.count === 0) return;
 
-          if (won) {
+          if (payout > 0) {
             await prisma.user.update({
               where: { id: pred.userId },
               data: { balance: { increment: payout } },
@@ -280,7 +310,10 @@ export async function settleDueMatches() {
           if (won) bucket.won++;
           else bucket.lost++;
           bucket.payout += payout;
-          bucket.staked += pred.stake;
+          // An insured loss cost nothing, same reason a gift's stake never
+          // came out of its recipient's own pocket — neither should count
+          // as "staked" in the summary push.
+          bucket.staked += insured || pred.gift ? 0 : pred.stake;
           outcomeByUser.set(pred.userId, bucket);
         })
       );
@@ -312,12 +345,17 @@ export async function settleDueMatches() {
           });
           if (predClaim.count === 0) return;
 
+          // A gifted pick was paid for by the sender, not the recipient it
+          // belongs to (see lib/gifts.ts) — refunding a cancelled one to
+          // pred.userId would hand the recipient money they never spent
+          // while leaving the sender out the price they actually paid.
+          const refundTo = pred.gift?.senderId ?? pred.userId;
           await prisma.user.update({
-            where: { id: pred.userId },
+            where: { id: refundTo },
             data: { balance: { increment: pred.stake } },
           });
 
-          refundedByUser.set(pred.userId, (refundedByUser.get(pred.userId) ?? 0) + pred.stake);
+          refundedByUser.set(refundTo, (refundedByUser.get(refundTo) ?? 0) + pred.stake);
         })
       );
 
