@@ -194,7 +194,11 @@ export const api = {
           cap: number;
           used: number;
           remaining: number;
-          byMatch: { matchId: string; label: string; stake: number }[];
+          // Optional: the mobile app and the deployed backend redeploy
+          // independently, so a client can briefly be ahead of the API
+          // that added this field. budgetSegments() treats a missing value
+          // as "no breakdown" rather than crashing.
+          byMatch?: { matchId: string; label: string; stake: number }[];
         };
       };
       startBalance: number;

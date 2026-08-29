@@ -73,14 +73,18 @@ const BUDGET_OTHER_TONE = "#616a80";
 // once it exceeds `cap` (there's no headroom left to show), and to `cap`
 // otherwise, so the bar always reads the same way it's captioned.
 export function budgetSegments(
-  byMatch: { label: string; stake: number }[],
+  // Optional/nullable to tolerate an older cached client or a backend
+  // response from before this field existed — a stale read should degrade
+  // to "no breakdown", never crash the wallet screen.
+  byMatch: { label: string; stake: number }[] | null | undefined,
   cap: number,
   used: number
 ): { segments: BudgetSegment[]; denom: number } {
+  const list = byMatch ?? [];
   const MAX = 4;
-  const top = byMatch.slice(0, MAX).map((m, i) => ({ label: m.label, stake: m.stake, color: BUDGET_TONES[i] }));
-  const restCount = byMatch.length - MAX;
-  const restStake = byMatch.slice(MAX).reduce((sum, m) => sum + m.stake, 0);
+  const top = list.slice(0, MAX).map((m, i) => ({ label: m.label, stake: m.stake, color: BUDGET_TONES[i] }));
+  const restCount = list.length - MAX;
+  const restStake = list.slice(MAX).reduce((sum, m) => sum + m.stake, 0);
   const segments =
     restCount > 0
       ? [...top, { label: `Diğer ${restCount} maç`, stake: restStake, color: BUDGET_OTHER_TONE }]
