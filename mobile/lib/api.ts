@@ -67,6 +67,17 @@ export type LeaderboardRow = {
   isYou: boolean;
 };
 
+// Mirrors lib/notifications.ts on the backend.
+export type NotificationItem = {
+  id: string;
+  kind: "settled" | "gift" | "transfer";
+  status: "won" | "lost" | "mixed" | "info";
+  title: string;
+  body: string;
+  amount: number | null;
+  at: string;
+};
+
 export type TransferTarget = { id: string; displayName: string; favoriteTeam: TeamCode | null };
 
 export type TransferHistoryItem = {
@@ -222,6 +233,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ openGiftId }),
     }),
+
+  getNotifications: () => request<{ items: NotificationItem[] }>("/api/notifications"),
 
   registerPushToken: (token: string, platform: "ios" | "android") =>
     request<{ ok: true }>("/api/push/register", {

@@ -4,6 +4,7 @@ import { getCommunityPulse, getLeaderboard, getUpcomingMatches, getWalletSummary
 import { formatTL, formatTime } from "@/lib/format";
 import MatchBoard from "@/components/MatchBoard";
 import BrandLogo from "@/components/BrandLogo";
+import NotificationBell from "@/components/NotificationBell";
 import type { MatchDTO } from "@/lib/types";
 import { prisma } from "@/lib/prisma";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
@@ -106,21 +107,16 @@ export default async function MacGunuPage() {
 
         <div className="relative flex items-start justify-between">
           <BrandLogo width={110} />
-          {favMeta ? (
-            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full">
-              <Image src={favMeta.logo} alt={favMeta.name} width={64} height={64} className="h-full w-full object-contain" />
-            </div>
-          ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-card-border bg-black/30">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5 text-ink-dim">
-                <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 01-3.46 0" />
-              </svg>
-            </div>
-          )}
+          <NotificationBell />
         </div>
 
-        <p className="relative mt-5 text-xs font-bold uppercase tracking-[0.2em] text-gold">
+        {favMeta && (
+          <div className="relative mt-4 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full">
+            <Image src={favMeta.logo} alt={favMeta.name} width={56} height={56} className="h-full w-full object-contain" />
+          </div>
+        )}
+
+        <p className={`relative text-xs font-bold uppercase tracking-[0.2em] text-gold ${favMeta ? "mt-3" : "mt-5"}`}>
           {favMeta ? `${favMeta.name} Kontrol Odası` : "Maç Günü Kontrol Odası"}
         </p>
         <h1 className="relative font-display text-3xl leading-tight mt-1">

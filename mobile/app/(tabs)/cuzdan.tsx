@@ -1,12 +1,13 @@
 import { useCallback, useState } from "react";
-import { useFocusEffect } from "expo-router";
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InfoAccordion from "@/components/InfoAccordion";
 import TransferPanel from "@/components/TransferPanel";
 import GiftPanel from "@/components/GiftPanel";
 import { IconCheck, IconCirclePlus, IconInfo, IconLock, IconShield, IconTrendUpArrow, IconWallet, IconX } from "@/components/icons";
+import ErrorBanner from "@/components/ErrorBanner";
 import { api } from "@/lib/api";
+import { useScreenLoad } from "@/lib/useScreenLoad";
 import { formatMatchDate, formatTime, formatTL } from "@/lib/format";
 import { colors, fonts, radii } from "@/lib/theme";
 
@@ -25,8 +26,6 @@ export default function CuzdanScreen() {
   const [data, setData] = useState<WalletData | null>(null);
   const [transfers, setTransfers] = useState<TransferData | null>(null);
   const [gifts, setGifts] = useState<GiftData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     const [wallet, transferData, giftData] = await Promise.all([
@@ -39,23 +38,23 @@ export default function CuzdanScreen() {
     setGifts(giftData);
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      setLoading(true);
-      load().finally(() => setLoading(false));
-    }, [load])
-  );
+  const { loading, refreshing, error, refresh } = useScreenLoad(load);
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  };
-
+  // On a failed load `data` stays null, so falling through to the spinner
+  // would leave the screen spinning forever with nothing to act on.
   if (loading || !data) {
     return (
       <SafeAreaView style={styles.flex} edges={["top"]}>
-        <ActivityIndicator color={colors.gold} style={{ marginTop: 60 }} />
+        {loading ? (
+          <ActivityIndicator color={colors.gold} style={{ marginTop: 60 }} />
+        ) : (
+          <View style={{ padding: 16 }}>
+            <ErrorBanner message={error ?? "Veri alınamadı."} />
+            <Pressable style={styles.retryBtn} onPress={refresh}>
+              <Text style={styles.retryText}>Tekrar dene</Text>
+            </Pressable>
+          </View>
+        )}
       </SafeAreaView>
     );
   }
@@ -73,7 +72,7 @@ export default function CuzdanScreen() {
     <SafeAreaView style={styles.flex} edges={["top"]}>
       <ScrollView
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl tintColor={colors.gold} refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl tintColor={colors.gold} refreshing={refreshing} onRefresh={refresh} />}
       >
         <Text style={styles.eyebrow}>Cüzdan Kontrolü</Text>
         <Text style={styles.title}>Sanal Bakiye</Text>
@@ -235,6 +234,15 @@ export default function CuzdanScreen() {
 }
 
 const styles = StyleSheet.create({
+  retryBtn: {
+    alignItems: "center",
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
+    paddingVertical: 12,
+  },
+  retryText: { color: colors.ink, fontSize: 13, fontFamily: fonts.bold },
   flex: { flex: 1, backgroundColor: colors.bg },
   list: { padding: 16, paddingBottom: 130 },
   eyebrow: { color: colors.gold, fontSize: 11, fontFamily: fonts.bold, textTransform: "uppercase", letterSpacing: 2 },

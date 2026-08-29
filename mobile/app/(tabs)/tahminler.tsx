@@ -1,10 +1,11 @@
 import { useCallback, useState } from "react";
-import { useFocusEffect } from "expo-router";
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import PredictionCard from "@/components/PredictionCard";
 import { IconShield, IconTrendUpArrow } from "@/components/icons";
+import ErrorBanner from "@/components/ErrorBanner";
 import { api } from "@/lib/api";
+import { useScreenLoad } from "@/lib/useScreenLoad";
 import { formatTL } from "@/lib/format";
 import type { PredictionDTO } from "@/lib/predictionTypes";
 import { colors, fonts, radii } from "@/lib/theme";
@@ -14,8 +15,6 @@ export default function TahminlerScreen() {
   const [settled, setSettled] = useState<PredictionDTO[]>([]);
   const [stats, setStats] = useState({ total: 0, correct: 0, netEffect: 0 });
   const [tab, setTab] = useState<"open" | "settled">("open");
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     const data = await api.getPredictions();
@@ -24,18 +23,7 @@ export default function TahminlerScreen() {
     setStats(data.stats);
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      setLoading(true);
-      load().finally(() => setLoading(false));
-    }, [load])
-  );
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  };
+  const { loading, refreshing, error, refresh } = useScreenLoad(load);
 
   const list = tab === "open" ? open : settled;
 
@@ -45,9 +33,10 @@ export default function TahminlerScreen() {
         data={list}
         keyExtractor={(p) => p.id}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl tintColor={colors.gold} refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl tintColor={colors.gold} refreshing={refreshing} onRefresh={refresh} />}
         ListHeaderComponent={
           <View style={{ marginBottom: 4 }}>
+            <ErrorBanner message={error} />
             <Text style={styles.eyebrow}>Sanal Performans</Text>
             <Text style={styles.title}>Tahminler</Text>
             <Text style={styles.pageSub}>Maç günündeki seçimlerini takip et, sonuçlarını birlikte değerlendir.</Text>

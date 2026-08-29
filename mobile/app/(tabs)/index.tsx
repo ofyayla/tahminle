@@ -1,13 +1,17 @@
 import { useCallback, useState } from "react";
-import { useFocusEffect } from "expo-router";
-import { ActivityIndicator, FlatList, Image, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { ActivityIndicator, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import MatchCard from "@/components/MatchCard";
+import MatchRowCompact from "@/components/MatchRowCompact";
 import StakeModal from "@/components/StakeModal";
 import BrandLogo from "@/components/BrandLogo";
+import ErrorBanner from "@/components/ErrorBanner";
 import { IconBell, IconTrendBars, IconWallet } from "@/components/icons";
 import { api } from "@/lib/api";
+import { useScreenLoad } from "@/lib/useScreenLoad";
+import { countUnread, getNotificationsSeenAt } from "@/lib/notificationsSeen";
 import { getOddsFor, type MarketCode } from "@/lib/markets";
 import { formatTL, formatTime } from "@/lib/format";
 import type { MatchDTO } from "@/lib/types";
@@ -18,11 +22,14 @@ import { useAuth } from "@/lib/auth-context";
 export default function MacGunuScreen() {
   const { user, rank, totalPlayers } = useAuth();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [matches, setMatches] = useState<MatchDTO[]>([]);
   const [available, setAvailable] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [wallet, setWallet] = useState({ openCount: 0, lockedInOpen: 0, potentialReturn: 0, total: 0 });
+  const [unread, setUnread] = useState(0);
+  // Which of the compact rows the user has opened. The featured match is
+  // always expanded, so it never appears here.
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [selection, setSelection] = useState<{ match: MatchDTO; market: MarketCode; choice: string } | null>(null);
 
   const load = useCallback(async () => {
@@ -30,20 +37,20 @@ export default function MacGunuScreen() {
     setMatches(matchesData.matches);
     setAvailable(matchesData.available);
     setWallet(walletData.wallet);
+
+    // The badge is a nicety — a failure here must not take the screen down.
+    try {
+      const [notifications, seenAt] = await Promise.all([
+        api.getNotifications(),
+        getNotificationsSeenAt(),
+      ]);
+      setUnread(countUnread(notifications.items, seenAt));
+    } catch {
+      setUnread(0);
+    }
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      setLoading(true);
-      load().finally(() => setLoading(false));
-    }, [load])
-  );
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  };
+  const { loading, refreshing, error, refresh, reload } = useScreenLoad(load);
 
   const favMeta = user?.favoriteTeam ? TEAM_META[user.favoriteTeam as TeamCode] : null;
 
@@ -53,9 +60,10 @@ export default function MacGunuScreen() {
         data={matches}
         keyExtractor={(m) => m.id}
         contentContainerStyle={[styles.list, { paddingTop: insets.top + 16 }]}
-        refreshControl={<RefreshControl tintColor={colors.gold} refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl tintColor={colors.gold} refreshing={refreshing} onRefresh={refresh} />}
         ListHeaderComponent={
           <View>
+            <ErrorBanner message={error} />
             <View style={[styles.hero, favMeta && { borderColor: `${favMeta.color}66` }]}>
               {favMeta ? (
                 <>
@@ -71,18 +79,29 @@ export default function MacGunuScreen() {
 
               <View style={styles.heroTop}>
                 <BrandLogo width={110} />
-                {favMeta ? (
-                  <View style={styles.favLogoWrap}>
-                    <Image source={{ uri: favMeta.logo }} style={{ width: 64, height: 64 }} />
-                  </View>
-                ) : (
-                  <View style={styles.noTeamBadge}>
-                    <IconBell size={20} color={colors.inkDim} />
-                  </View>
-                )}
+                <Pressable
+                  style={styles.bellBtn}
+                  onPress={() => router.push("/bildirimler")}
+                  hitSlop={8}
+                >
+                  <IconBell size={20} color={unread > 0 ? colors.gold : colors.inkDim} />
+                  {unread > 0 && (
+                    <View style={styles.bellBadge}>
+                      <Text style={styles.bellBadgeText}>{unread > 9 ? "9+" : unread}</Text>
+                    </View>
+                  )}
+                </Pressable>
               </View>
 
-              <Text style={styles.eyebrow}>{favMeta ? `${favMeta.name} Kontrol Odası` : "Maç Günü Kontrol Odası"}</Text>
+              {favMeta && (
+                <View style={styles.favLogoWrap}>
+                  <Image source={{ uri: favMeta.logo }} style={{ width: 56, height: 56 }} />
+                </View>
+              )}
+
+              <Text style={[styles.eyebrow, favMeta && { marginTop: 12 }]}>
+                {favMeta ? `${favMeta.name} Kontrol Odası` : "Maç Günü Kontrol Odası"}
+              </Text>
               <Text style={styles.heroTitle}>Bu hafta sahne senin.</Text>
 
               <View style={styles.statRow}>
@@ -142,15 +161,36 @@ export default function MacGunuScreen() {
             <Text style={styles.sectionSub}>Kulübünün maçını seç, sanal tahminini kur.</Text>
           </View>
         }
-        renderItem={({ item, index }) => (
-          <View style={styles.cardWrap}>
-            <MatchCard
-              match={item}
-              featured={index === 0}
-              onPick={(market, choice) => setSelection({ match: item, market, choice })}
-            />
-          </View>
-        )}
+        renderItem={({ item, index }) => {
+          const onPick = (market: MarketCode, choice: string) =>
+            setSelection({ match: item, market, choice });
+
+          // The next match up gets the full treatment; everything behind it
+          // is a compact row that expands on tap, so the list stays scannable.
+          if (index === 0) {
+            return (
+              <View style={styles.cardWrap}>
+                <MatchCard match={item} featured onPick={onPick} />
+              </View>
+            );
+          }
+
+          const isOpen = !!expanded[item.id];
+          return (
+            <View style={styles.cardWrap}>
+              <MatchRowCompact
+                match={item}
+                expanded={isOpen}
+                onToggle={() => setExpanded((e) => ({ ...e, [item.id]: !e[item.id] }))}
+              />
+              {isOpen && (
+                <View style={{ marginTop: 8 }}>
+                  <MatchCard match={item} onPick={onPick} />
+                </View>
+              )}
+            </View>
+          );
+        }}
         ListEmptyComponent={
           loading ? (
             <ActivityIndicator color={colors.gold} style={{ marginTop: 40 }} />
@@ -186,7 +226,7 @@ export default function MacGunuScreen() {
           onClose={() => setSelection(null)}
           onSuccess={async () => {
             setSelection(null);
-            await load();
+            await reload();
           }}
         />
       )}
@@ -199,8 +239,40 @@ const styles = StyleSheet.create({
   list: { padding: 16, paddingBottom: 120, gap: 12 },
   hero: { borderRadius: radii["3xl"], borderWidth: 1, borderColor: colors.cardBorder, padding: 20, overflow: "hidden", marginBottom: 20 },
   heroTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  favLogoWrap: { width: 64, height: 64, borderRadius: 32, overflow: "hidden", alignItems: "center", justifyContent: "center" },
-  noTeamBadge: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: "rgba(0,0,0,0.3)", alignItems: "center", justifyContent: "center" },
+  favLogoWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 16,
+  },
+  bellBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bellBadge: {
+    position: "absolute",
+    top: -3,
+    right: -3,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.red,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: colors.bg,
+  },
+  bellBadgeText: { color: "#fff", fontSize: 10, fontFamily: fonts.bold },
   eyebrow: { color: colors.gold, fontSize: 12, fontFamily: fonts.bold, textTransform: "uppercase", letterSpacing: 2, marginTop: 20 },
   heroTitle: { color: colors.ink, fontSize: 30, fontFamily: fonts.display, marginTop: 4 },
   statRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 20 },

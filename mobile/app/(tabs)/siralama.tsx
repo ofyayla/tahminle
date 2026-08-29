@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
-import { useFocusEffect } from "expo-router";
 import { ActivityIndicator, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InfoAccordion from "@/components/InfoAccordion";
+import ErrorBanner from "@/components/ErrorBanner";
 import { api } from "@/lib/api";
+import { useScreenLoad } from "@/lib/useScreenLoad";
 import { formatMatchDate, formatTL } from "@/lib/format";
 import { getChoiceLabel, type MarketCode } from "@/lib/markets";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
@@ -32,36 +33,44 @@ function timeAgo(iso: string): string {
 export default function SiralamaScreen() {
   const [data, setData] = useState<LeaderboardData | null>(null);
   const [filter, setFilter] = useState<TeamCode | "ALL">("ALL");
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     const res = await api.getLeaderboard();
     setData(res);
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      setLoading(true);
-      load().finally(() => setLoading(false));
-    }, [load])
-  );
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  };
+  const { loading, refreshing, error, refresh } = useScreenLoad(load);
 
   const visible = useMemo(() => {
     if (!data) return [];
     return filter === "ALL" ? data.ranked : data.ranked.filter((r) => r.favoriteTeam === filter);
   }, [data, filter]);
 
+  // The season closes at Monday 00:00, i.e. the very start of the next week —
+  // label it with the Sunday that's actually the last playing day. Guarded
+  // because a backend that predates weekly seasons sends no seasonEnd at all,
+  // and formatMatchDate throws outright on an invalid Date.
+  const seasonLastDay = useMemo(() => {
+    const end = data?.seasonEnd ? new Date(data.seasonEnd) : null;
+    if (!end || Number.isNaN(end.getTime())) return null;
+    return new Date(end.getTime() - 1);
+  }, [data?.seasonEnd]);
+
+  // On a failed load `data` stays null, so falling through to the spinner
+  // would leave the screen spinning forever with nothing to act on.
   if (loading || !data) {
     return (
       <SafeAreaView style={styles.flex} edges={["top"]}>
-        <ActivityIndicator color={colors.gold} style={{ marginTop: 60 }} />
+        {loading ? (
+          <ActivityIndicator color={colors.gold} style={{ marginTop: 60 }} />
+        ) : (
+          <View style={{ padding: 16 }}>
+            <ErrorBanner message={error ?? "Veri alınamadı."} />
+            <Pressable style={styles.retryBtn} onPress={refresh}>
+              <Text style={styles.retryText}>Tekrar dene</Text>
+            </Pressable>
+          </View>
+        )}
       </SafeAreaView>
     );
   }
@@ -72,9 +81,10 @@ export default function SiralamaScreen() {
         data={visible}
         keyExtractor={(r) => r.id}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl tintColor={colors.gold} refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl tintColor={colors.gold} refreshing={refreshing} onRefresh={refresh} />}
         ListHeaderComponent={
           <View>
+            <ErrorBanner message={error} />
             <Text style={styles.eyebrow}>Taraftar Ligi</Text>
             <Text style={styles.title}>Sıralama</Text>
             <Text style={styles.pageSub}>
@@ -99,10 +109,11 @@ export default function SiralamaScreen() {
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.seasonNote}>
-                  Sezon {formatMatchDate(new Date(new Date(data.seasonEnd).getTime() - 1))} akşamı
-                  kapanıyor, Pazartesi sıfırlanır.
-                </Text>
+                {seasonLastDay && (
+                  <Text style={styles.seasonNote}>
+                    Sezon {formatMatchDate(seasonLastDay)} akşamı kapanıyor, Pazartesi sıfırlanır.
+                  </Text>
+                )}
               </View>
             )}
 
@@ -212,6 +223,15 @@ export default function SiralamaScreen() {
 }
 
 const styles = StyleSheet.create({
+  retryBtn: {
+    alignItems: "center",
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
+    paddingVertical: 12,
+  },
+  retryText: { color: colors.ink, fontSize: 13, fontFamily: fonts.bold },
   flex: { flex: 1, backgroundColor: colors.bg },
   list: { padding: 16, paddingBottom: 130 },
   eyebrow: { color: colors.gold, fontSize: 11, fontFamily: fonts.bold, textTransform: "uppercase", letterSpacing: 2 },
