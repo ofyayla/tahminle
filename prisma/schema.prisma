@@ -27,6 +27,25 @@ model User {
   receivedTransfers Transfer[] @relation("ReceivedTransfers")
   sentGifts         Gift[]     @relation("SentGifts")
   receivedGifts     Gift[]     @relation("ReceivedGifts")
+  pushTokens        PushToken[]
+}
+
+// An Expo push token for one installation of the mobile app. A user can have
+// several (phone + tablet, reinstall), so the token — not the user — is the
+// unique key. Rows are disposable: Expo tells us when a token has gone stale
+// ("DeviceNotRegistered") and lib/push.ts deletes it, so they cascade away
+// with the user rather than being worth preserving.
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String // ios | android
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // A direct virtual-balance transfer between two players. Kept as its own row
@@ -114,6 +133,16 @@ model Match {
   // several seconds of model + web-search time.
   aiAnalysis   String?
   aiAnalysisAt DateTime?
+
+  // Set the first time a "maç birazdan başlıyor" push goes out for this
+  // match. The cron runs every ~60s, so without a marker every tick inside
+  // the reminder window would re-notify the same people.
+  startingSoonNotifiedAt DateTime?
+
+  // The scoreline the last goal notification was sent for, as "H-A". Compared
+  // against a freshly scraped score to tell an actual goal from a re-read of
+  // the same score. Null until the first live score arrives.
+  notifiedScore String?
 
   createdAt     DateTime @default(now())
 

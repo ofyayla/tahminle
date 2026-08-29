@@ -222,4 +222,16 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ openGiftId }),
     }),
+
+  registerPushToken: (token: string, platform: "ios" | "android") =>
+    request<{ ok: true }>("/api/push/register", {
+      method: "POST",
+      body: JSON.stringify({ token, platform }),
+    }),
+
+  unregisterPushToken: (token: string) =>
+    request<{ ok: true }>("/api/push/register", {
+      method: "DELETE",
+      body: JSON.stringify({ token }),
+    }),
 };

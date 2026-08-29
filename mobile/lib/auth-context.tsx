@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, ApiError, clearToken, getToken, setToken, type CurrentUser } from "./api";
+import { registerForPush, unregisterFromPush } from "./push";
 import type { TeamCode } from "./teams";
 
 type AuthContextValue = {
@@ -42,6 +43,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.user);
       setRank(data.rank);
       setTotalPlayers(data.totalPlayers);
+      // Re-registering on every confirmed session keeps the token pointed at
+      // the right user and revives one the backend dropped as stale. It's a
+      // no-op once the token is already on file.
+      void registerForPush();
     } catch (err) {
       // Only a genuine "you're not authenticated" response should sign the
       // user out. A network blip or a slow/cold backend must not wipe an
@@ -78,6 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    // Drop the push token before the session goes away — the backend needs a
+    // valid session to know whose token it is.
+    await unregisterFromPush();
     await api.logout().catch(() => {});
     await clearToken();
     setUser(null);

@@ -1,5 +1,7 @@
-import { Stack } from "expo-router";
+import { useEffect } from "react";
+import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as Notifications from "expo-notifications";
 import { ActivityIndicator, View } from "react-native";
 import { useFonts as useArchivoBlack, ArchivoBlack_400Regular } from "@expo-google-fonts/archivo-black";
 import {
@@ -11,6 +13,7 @@ import {
   Manrope_800ExtraBold,
 } from "@expo-google-fonts/manrope";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { routeForNotification } from "@/lib/push";
 import { colors } from "@/lib/theme";
 
 export default function RootLayout() {
@@ -41,6 +44,7 @@ export default function RootLayout() {
 
 function RootNavigator() {
   const { user, loading } = useAuth();
+  useNotificationRouting(!!user);
 
   if (loading) {
     return (
@@ -61,4 +65,21 @@ function RootNavigator() {
       </Stack.Protected>
     </Stack>
   );
+}
+
+// Sends the user to the screen a tapped notification is about. Handles both
+// the app being opened by the notification from cold (getLastNotificationResponse)
+// and a tap while it's already running (the subscription).
+function useNotificationRouting(signedIn: boolean) {
+  const router = useRouter();
+  const lastResponse = Notifications.useLastNotificationResponse();
+
+  useEffect(() => {
+    // Routing into the tabs before the session is confirmed would just bounce
+    // off the auth guard.
+    if (!signedIn) return;
+    const data = lastResponse?.notification.request.content.data;
+    const route = routeForNotification(data);
+    if (route) router.push(route as never);
+  }, [signedIn, lastResponse, router]);
 }

@@ -1,4 +1,6 @@
 import { prisma } from "./prisma";
+import { formatTL } from "./format";
+import { sendPushToUsers } from "./push";
 
 export const MIN_TRANSFER = 10;
 export const MAX_TRANSFER = 100000;
@@ -60,6 +62,20 @@ export async function transferBalance(
       // simultaneous transfer can fail outright, so give it real room.
       maxWait: 10000,
       timeout: 15000,
+    });
+
+    // After the transaction commits — a push must never be able to roll back
+    // or delay the transfer itself.
+    const sender = await prisma.user.findUnique({
+      where: { id: senderId },
+      select: { displayName: true },
+    });
+    await sendPushToUsers([recipientId], {
+      title: "💸 Bakiye geldi",
+      body: `${sender?.displayName ?? "Bir taraftar"} sana ${formatTL(amount)} gönderdi.${
+        note?.trim() ? ` "${note.trim()}"` : ""
+      }`,
+      data: { type: "transfer", transferId },
     });
 
     return { ok: true, transferId };

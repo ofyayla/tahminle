@@ -1,5 +1,7 @@
 import { prisma } from "./prisma";
 import type { MarketCode } from "./markets";
+import { formatTL } from "./format";
+import { sendPushToUsers } from "./push";
 
 export const MIN_GIFT_PRICE = 50;
 export const MAX_GIFT_PRICE = 5000;
@@ -167,6 +169,18 @@ export async function sendGift(
       // interactive transactions need more than the default 2s to queue.
       maxWait: 10000,
       timeout: 15000,
+    });
+
+    // After the transaction commits — a push must never be able to roll back
+    // or delay the gift itself.
+    const sender = await prisma.user.findUnique({
+      where: { id: senderId },
+      select: { displayName: true },
+    });
+    await sendPushToUsers([recipientId], {
+      title: "🎁 Sürpriz kupon geldi!",
+      body: `${sender?.displayName ?? "Bir taraftar"} sana ${formatTL(stake)} değerinde bir kupon gönderdi. Aç ve gör!`,
+      data: { type: "gift", giftId },
     });
 
     return { ok: true, giftId };

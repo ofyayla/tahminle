@@ -3,6 +3,7 @@ import { isWinningChoice, parseScoreChoice, type MarketCode } from "./markets";
 import { fetchRealResults, findRealResult } from "./resultsBackend";
 import { getLiveScore } from "./liveScoreScraper";
 import { TRACKED_TEAMS } from "./scraper";
+import { sendPushToUsers, usersWithOpenPredictionsOn } from "./push";
 
 // If no real result is available by this long after kickoff, fall back to an
 // odds-implied simulation rather than leaving predictions stuck open forever.
@@ -86,6 +87,59 @@ function simulateOutcome(match: {
     homeScore: null,
     awayScore: null,
   };
+}
+
+type StartedMatch = {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+  notifiedScore: string | null;
+};
+
+// Pushes a "GOL!" to everyone holding an open prediction on a match whose
+// score just moved.
+//
+// The first score we ever see for a match is recorded silently rather than
+// announced: a cold start mid-match would otherwise fire "GOL!" for a goal
+// that was scored half an hour ago. In practice the cron picks a match up at
+// 0-0 within a minute of kickoff, so only the genuinely-missed first goal of
+// a match is ever lost this way.
+async function notifyGoals(
+  matches: StartedMatch[],
+  updates: { matchId: string; homeScore: number; awayScore: number }[]
+) {
+  const byId = new Map(matches.map((m) => [m.id, m]));
+
+  await Promise.all(
+    updates.map(async (u) => {
+      const match = byId.get(u.matchId);
+      if (!match) return;
+
+      const scoreKey = `${u.homeScore}-${u.awayScore}`;
+      if (match.notifiedScore === scoreKey) return;
+
+      const previous = match.notifiedScore;
+      await prisma.match.update({
+        where: { id: u.matchId },
+        data: { notifiedScore: scoreKey },
+      });
+      if (previous == null) return;
+
+      const [prevHome, prevAway] = previous.split("-").map(Number);
+      // Only a rising score is a goal. A correction downwards (provider
+      // fixing a bad read, a disallowed goal) shouldn't be announced.
+      if (u.homeScore + u.awayScore <= prevHome + prevAway) return;
+
+      const scorer = u.homeScore > prevHome ? match.homeTeam : match.awayTeam;
+      const userIds = await usersWithOpenPredictionsOn(u.matchId);
+
+      await sendPushToUsers(userIds, {
+        title: `⚽ GOL! ${scorer}`,
+        body: `${match.homeTeam} ${u.homeScore}-${u.awayScore} ${match.awayTeam}`,
+        data: { type: "goal", matchId: u.matchId },
+      });
+    })
+  );
 }
 
 export async function settleDueMatches() {
@@ -195,6 +249,7 @@ export async function settleDueMatches() {
         })
       )
     );
+    await notifyGoals(startedMatches, liveScoreUpdates);
   }
 
   const missedScrapeIds = scrapedAtMatchIds.filter((id) => !liveScoreUpdates.some((u) => u.matchId === id));
@@ -224,6 +279,10 @@ export async function settleDueMatches() {
       if (claim.count === 0) return;
       settledCount++;
 
+      // Collected per user so someone holding four picks on one match gets a
+      // single summary push instead of four separate buzzes.
+      const outcomeByUser = new Map<string, { won: number; lost: number; payout: number; staked: number }>();
+
       await Promise.all(
         match.predictions.map(async (pred) => {
           let won: boolean;
@@ -250,12 +309,54 @@ export async function settleDueMatches() {
               data: { balance: { increment: payout } },
             });
           }
+
+          const bucket = outcomeByUser.get(pred.userId) ?? { won: 0, lost: 0, payout: 0, staked: 0 };
+          if (won) bucket.won++;
+          else bucket.lost++;
+          bucket.payout += payout;
+          bucket.staked += pred.stake;
+          outcomeByUser.set(pred.userId, bucket);
         })
       );
+
+      await notifySettled(match, outcomeByUser);
     })
   );
 
   return settledCount;
+}
+
+// One push per user per settled match, summarising how their picks did.
+async function notifySettled(
+  match: { id: string; homeTeam: string; awayTeam: string; homeScore: number | null; awayScore: number | null },
+  outcomeByUser: Map<string, { won: number; lost: number; payout: number; staked: number }>
+) {
+  if (outcomeByUser.size === 0) return;
+
+  const label = `${match.homeTeam} – ${match.awayTeam}`;
+  const score =
+    match.homeScore != null && match.awayScore != null
+      ? ` ${match.homeScore}-${match.awayScore}`
+      : "";
+
+  await Promise.all(
+    [...outcomeByUser].map(([userId, o]) => {
+      const net = o.payout - o.staked;
+      const title = o.won > 0 ? `✅ ${o.won} tahminin tuttu!` : "❌ Tahminin tutmadı";
+      const detail =
+        o.won > 0 && o.lost > 0
+          ? `${o.won} doğru, ${o.lost} yanlış · ${net >= 0 ? "+" : "−"}₺${Math.abs(net).toLocaleString("tr-TR")}`
+          : o.won > 0
+          ? `+₺${o.payout.toLocaleString("tr-TR")} kazandın`
+          : `−₺${o.staked.toLocaleString("tr-TR")}`;
+
+      return sendPushToUsers([userId], {
+        title,
+        body: `${label}${score} · ${detail}`,
+        data: { type: "settled", matchId: match.id },
+      });
+    })
+  );
 }
 
 // Also flip upcoming -> live once kickoff passes, for matches not yet due for settlement.

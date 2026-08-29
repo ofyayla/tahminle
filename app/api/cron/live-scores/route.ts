@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncMatchState } from "@/lib/data";
 import { refreshAiAnalyses } from "@/lib/aiAnalysis";
+import { notifyStartingSoon } from "@/lib/reminders";
 
 // Runs on a schedule (driven by an external cron service) so no user request
 // ever pays the ~15s cost of a cold headless-browser scrape
@@ -15,7 +16,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // syncMatchState() sends the goal and settlement pushes as a side effect of
+  // updating scores — this is the only place that runs often enough for them
+  // to be timely.
   await syncMatchState();
+
+  // Kickoff reminders are their own pass: they're about matches that haven't
+  // started yet, which settlement never looks at.
+  const reminders = await notifyStartingSoon().catch((err) => {
+    console.error("Maç hatırlatma bildirimi hatası:", err);
+    return 0;
+  });
 
   // One note per tick keeps this well inside the function's time budget;
   // refreshAiAnalyses only picks up matches whose note is missing or stale,
@@ -25,5 +36,5 @@ export async function GET(request: NextRequest) {
     return 0;
   });
 
-  return NextResponse.json({ ok: true, analyses });
+  return NextResponse.json({ ok: true, analyses, reminders });
 }
