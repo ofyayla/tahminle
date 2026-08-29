@@ -3,16 +3,14 @@
 import { useState } from "react";
 import Image from "next/image";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
+import { formatTL } from "@/lib/format";
 
 type Row = {
   rank: number;
   id: string;
   displayName: string;
   favoriteTeam: string | null;
-  points: number;
-  correct: number;
-  total: number;
-  accuracy: number;
+  balance: number;
   isYou: boolean;
 };
 
@@ -78,15 +76,11 @@ export default function LeaderboardList({ rows }: { rows: Row[] }) {
                   <div className="truncate text-sm font-bold">
                     {row.displayName} {row.isYou && <span className="text-gold">(Sen)</span>}
                   </div>
-                  <div className="text-[11px] text-ink-dim">
-                    {row.total > 0
-                      ? `${row.correct}/${row.total} doğru · %${row.accuracy} isabet`
-                      : "Bu hafta henüz tahmin yok"}
-                  </div>
+                  <div className="text-[11px] text-ink-dim">{meta?.name ?? "Takım seçilmedi"}</div>
                 </div>
                 <div className="flex-shrink-0 text-right">
-                  <div className="font-display text-sm text-gold">{row.points}</div>
-                  <div className="text-[10px] text-ink-faint">puan</div>
+                  <div className="font-display text-sm text-gold">{formatTL(row.balance)}</div>
+                  <div className="text-[10px] text-ink-faint">bakiye</div>
                 </div>
               </div>
             );

@@ -53,17 +53,13 @@ export type CurrentUser = {
   createdAt: string;
 };
 
-// Mirrors lib/data.ts's LeaderboardRow — ranking is by weekly points, not
-// balance (see lib/scoring.ts on the backend).
+// Mirrors lib/data.ts's LeaderboardRow — ranking is by virtual balance.
 export type LeaderboardRow = {
   rank: number;
   id: string;
   displayName: string;
   favoriteTeam: TeamCode | null;
-  points: number;
-  correct: number;
-  total: number;
-  accuracy: number;
+  balance: number;
   isYou: boolean;
 };
 
@@ -200,8 +196,6 @@ export const api = {
       ranked: LeaderboardRow[];
       you: LeaderboardRow | null;
       totalPlayers: number;
-      seasonStart: string;
-      seasonEnd: string;
       feed: {
         id: string;
         displayName: string;

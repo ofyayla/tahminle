@@ -14,7 +14,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.tahminle.app",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.tahminle.app",
@@ -47,6 +50,10 @@
         "ios": "265643465032-a8aea9qk634ajpi3v7k1fa57dbe5v9fa.apps.googleusercontent.com",
         "android": "",
         "web": "265643465032-02a8jo5g6mvbg6gnmhg4mp21ijtdbcdl.apps.googleusercontent.com"
+      },
+      "router": {},
+      "eas": {
+        "projectId": "1b8e0a1e-5ffd-449c-a41c-5aebc311ad0e"
       }
     }
   }

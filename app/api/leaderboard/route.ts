@@ -8,9 +8,9 @@ export async function GET() {
     return NextResponse.json({ error: "Giriş yapmalısın." }, { status: 401 });
   }
 
-  // Spread the whole leaderboard result rather than picking fields out of it:
-  // destructuring here is how `seasonStart`/`seasonEnd` silently went missing
-  // from the mobile client's payload when they were added to getLeaderboard.
+  // Spread the whole leaderboard result rather than picking fields out of it,
+  // so anything added to getLeaderboard reaches the mobile client instead of
+  // silently going missing from the payload.
   const [leaderboard, feed] = await Promise.all([
     getLeaderboard(userId),
     getCommunityFeed(userId),

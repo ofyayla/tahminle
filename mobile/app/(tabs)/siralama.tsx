@@ -1,11 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import InfoAccordion from "@/components/InfoAccordion";
 import ErrorBanner from "@/components/ErrorBanner";
 import { api } from "@/lib/api";
 import { useScreenLoad } from "@/lib/useScreenLoad";
-import { formatMatchDate, formatTL } from "@/lib/format";
+import { formatTL } from "@/lib/format";
 import { getChoiceLabel, type MarketCode } from "@/lib/markets";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
 import { colors, fonts, radii } from "@/lib/theme";
@@ -46,16 +45,6 @@ export default function SiralamaScreen() {
     return filter === "ALL" ? data.ranked : data.ranked.filter((r) => r.favoriteTeam === filter);
   }, [data, filter]);
 
-  // The season closes at Monday 00:00, i.e. the very start of the next week —
-  // label it with the Sunday that's actually the last playing day. Guarded
-  // because a backend that predates weekly seasons sends no seasonEnd at all,
-  // and formatMatchDate throws outright on an invalid Date.
-  const seasonLastDay = useMemo(() => {
-    const end = data?.seasonEnd ? new Date(data.seasonEnd) : null;
-    if (!end || Number.isNaN(end.getTime())) return null;
-    return new Date(end.getTime() - 1);
-  }, [data?.seasonEnd]);
-
   // On a failed load `data` stays null, so falling through to the spinner
   // would leave the screen spinning forever with nothing to act on.
   if (loading || !data) {
@@ -87,33 +76,18 @@ export default function SiralamaScreen() {
             <ErrorBanner message={error} />
             <Text style={styles.eyebrow}>Taraftar Ligi</Text>
             <Text style={styles.title}>Sıralama</Text>
-            <Text style={styles.pageSub}>
-              Bu haftanın doğru tahmin puanlarına göre sıralanıyorsun. Bakiye değil, isabet konuşuyor.
-            </Text>
+            <Text style={styles.pageSub}>Sanal bakiyene göre diğer taraftarlar arasındaki yerin.</Text>
 
             {data.you && (
               <View style={styles.youCard}>
-                <View style={styles.youTopRow}>
-                  <View>
-                    <Text style={styles.youLabel}>Senin Sıran</Text>
-                    <Text style={styles.youRank}>#{data.you.rank}</Text>
-                    <Text style={styles.youTotal}>{data.totalPlayers} taraftar arasında</Text>
-                  </View>
-                  <View style={{ alignItems: "flex-end" }}>
-                    <Text style={styles.youPoints}>{data.you.points}</Text>
-                    <Text style={styles.youTotal}>puan</Text>
-                    <Text style={styles.youTotal}>
-                      {data.you.total > 0
-                        ? `${data.you.correct}/${data.you.total} · %${data.you.accuracy}`
-                        : "tahmin yok"}
-                    </Text>
-                  </View>
+                <View>
+                  <Text style={styles.youLabel}>Senin Sıran</Text>
+                  <Text style={styles.youRank}>#{data.you.rank}</Text>
                 </View>
-                {seasonLastDay && (
-                  <Text style={styles.seasonNote}>
-                    Sezon {formatMatchDate(seasonLastDay)} akşamı kapanıyor, Pazartesi sıfırlanır.
-                  </Text>
-                )}
+                <View style={{ alignItems: "flex-end" }}>
+                  <Text style={styles.youBalance}>{formatTL(data.you.balance)}</Text>
+                  <Text style={styles.youTotal}>{data.totalPlayers} taraftar arasında</Text>
+                </View>
               </View>
             )}
 
@@ -148,15 +122,11 @@ export default function SiralamaScreen() {
                 <Text style={styles.rowName} numberOfLines={1}>
                   {item.displayName} {item.isYou && <Text style={{ color: colors.gold }}>(Sen)</Text>}
                 </Text>
-                <Text style={styles.rowTeam}>
-                  {item.total > 0
-                    ? `${item.correct}/${item.total} doğru · %${item.accuracy} isabet`
-                    : "Bu hafta henüz tahmin yok"}
-                </Text>
+                <Text style={styles.rowTeam}>{meta?.name ?? "Takım seçilmedi"}</Text>
               </View>
               <View style={{ alignItems: "flex-end" }}>
-                <Text style={styles.rowBalance}>{item.points}</Text>
-                <Text style={styles.rowBalanceLabel}>puan</Text>
+                <Text style={styles.rowBalance}>{formatTL(item.balance)}</Text>
+                <Text style={styles.rowBalanceLabel}>bakiye</Text>
               </View>
             </View>
           );
@@ -164,17 +134,6 @@ export default function SiralamaScreen() {
         ListEmptyComponent={<Text style={styles.empty}>Bu filtrede henüz taraftar yok.</Text>}
         ListFooterComponent={
           <View style={{ marginTop: 8 }}>
-            <View style={{ marginBottom: 20 }}>
-              <InfoAccordion title="Puanlar nasıl hesaplanır?" subtitle="Haftalık sezon ve isabet puanı" defaultOpen={false}>
-                Doğru bilinen her tahmin, kilitlenen oranın 10 katı kadar puan kazandırır — 2.40
-                oranlı bir tahmin 24 puan eder. Yanlış tahmin puan kaybettirmez, sadece isabet
-                yüzdeni düşürür. Ne kadar sanal bakiye yatırdığın puanı etkilemez, bu yüzden yüksek
-                bakiye sıralamada avantaj sağlamaz. Tek bir tahminden en fazla 100 puan alınabilir.
-                Hediye edilen sürpriz kuponlar seçimi sana ait olmadığı için sıralamaya girmez.
-                Sezon her Pazartesi 00:00'da sıfırlanır.
-              </InfoAccordion>
-            </View>
-
             <Text style={styles.sectionTitle}>Topluluk Akışı</Text>
             <Text style={styles.sectionSub}>Grubun içindeki taraftarlar hangi maça ne oynadı.</Text>
             {data.feed.length === 0 ? (
@@ -238,6 +197,8 @@ const styles = StyleSheet.create({
   title: { color: colors.ink, fontSize: 28, fontFamily: fonts.display, marginTop: 6 },
   pageSub: { color: colors.inkDim, fontSize: 13, fontFamily: fonts.regular, marginTop: 8, marginBottom: 16 },
   youCard: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     borderRadius: radii["2xl"],
     borderWidth: 1,
     borderColor: `${colors.gold}66`,
@@ -245,20 +206,10 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
-  youTopRow: { flexDirection: "row", justifyContent: "space-between" },
   youLabel: { color: colors.goldDim, fontSize: 10, fontFamily: fonts.bold, textTransform: "uppercase" },
   youRank: { color: colors.ink, fontSize: 24, fontFamily: fonts.display, marginTop: 2 },
-  youPoints: { color: colors.gold, fontSize: 24, fontFamily: fonts.display },
+  youBalance: { color: colors.gold, fontSize: 16, fontFamily: fonts.display },
   youTotal: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular, marginTop: 2 },
-  seasonNote: {
-    color: colors.inkDim,
-    fontSize: 11,
-    fontFamily: fonts.regular,
-    marginTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: `${colors.gold}33`,
-    paddingTop: 12,
-  },
   filterRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
   filterChip: { borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, borderRadius: radii.full, paddingHorizontal: 16, paddingVertical: 8 },
   filterChipActive: { backgroundColor: colors.gold, borderColor: colors.gold },
