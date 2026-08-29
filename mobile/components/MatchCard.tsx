@@ -2,8 +2,10 @@ import { StyleSheet, Text, View } from "react-native";
 import TeamAvatar from "./TeamAvatar";
 import OddsButton from "./OddsButton";
 import Countdown from "./Countdown";
+import LiveMinute from "./LiveMinute";
 import CommunityPulseBar from "./CommunityPulseBar";
 import ExtraMarketsPanel from "./ExtraMarketsPanel";
+import AiAnalysisPanel from "./AiAnalysisPanel";
 import { formatMatchDate, formatTime } from "@/lib/format";
 import { getChoiceLabel, getMarketName, type MarketCode } from "@/lib/markets";
 import type { MatchDTO } from "@/lib/types";
@@ -20,9 +22,12 @@ export default function MatchCard({
   onPick: (market: MarketCode, choice: string) => void;
 }) {
   const kickoff = new Date(match.kickoff);
-  const matchClosed = match.status === "finished";
+  const isLive = match.status === "live";
+  const isFinished = match.status === "finished";
+  // Betting closes the moment a match kicks off — only "upcoming" matches are pickable.
+  const bettingClosed = match.status !== "upcoming";
   const choice1X2 = match.openByMarket["1X2"];
-  const disabled1X2 = matchClosed || choice1X2 != null;
+  const disabled1X2 = bettingClosed || choice1X2 != null;
   const openEntries = Object.entries(match.openByMarket);
 
   return (
@@ -31,13 +36,21 @@ export default function MatchCard({
 
       <View style={styles.topRow}>
         <View style={styles.statusPill}>
-          <View style={[styles.dot, { backgroundColor: match.status === "live" ? colors.red : colors.green }]} />
+          <View style={[styles.dot, { backgroundColor: isLive ? colors.red : colors.green }]} />
           <Text style={styles.topRowText}>{featured ? "SIRADAKI BÜYÜK MAÇ" : match.league ?? "Süper Lig"}</Text>
         </View>
-        <View style={styles.countdownRow}>
-          <IconClock size={14} color={colors.gold} />
-          <Countdown kickoff={match.kickoff} style={styles.countdown} />
-        </View>
+        {isLive ? (
+          <View style={styles.countdownRow}>
+            <View style={[styles.dot, { backgroundColor: colors.red }]} />
+            <Text style={styles.liveLabel}>CANLI · </Text>
+            <LiveMinute kickoff={match.kickoff} style={styles.liveLabel} />
+          </View>
+        ) : (
+          <View style={styles.countdownRow}>
+            <IconClock size={14} color={colors.gold} />
+            <Countdown kickoff={match.kickoff} style={styles.countdown} />
+          </View>
+        )}
       </View>
 
       <View style={styles.teamsRow}>
@@ -48,7 +61,13 @@ export default function MatchCard({
           </Text>
         </View>
         <View style={styles.vsCol}>
-          <Text style={styles.vs}>VS</Text>
+          {match.liveScore ? (
+            <Text style={styles.liveScore}>
+              {match.liveScore.home}-{match.liveScore.away}
+            </Text>
+          ) : (
+            <Text style={styles.vs}>VS</Text>
+          )}
           <Text style={styles.vsTime}>{formatTime(kickoff)}</Text>
         </View>
         <View style={styles.teamCol}>
@@ -100,9 +119,11 @@ export default function MatchCard({
           ))}
         </View>
       )}
-      {matchClosed && <Text style={styles.closedText}>Maç sonuçlandı</Text>}
+      {isLive && <Text style={styles.closedText}>Maç başladı — tahmin kilitlendi</Text>}
+      {isFinished && <Text style={styles.closedText}>Maç sonuçlandı</Text>}
 
-      <ExtraMarketsPanel match={match} matchClosed={matchClosed} onPick={onPick} />
+      <ExtraMarketsPanel match={match} matchClosed={bettingClosed} onPick={onPick} />
+      <AiAnalysisPanel analysis={match.aiAnalysis} />
       <CommunityPulseBar pulse={match.pulse} />
     </View>
   );
@@ -125,11 +146,13 @@ const styles = StyleSheet.create({
   topRowText: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.semibold },
   countdownRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   countdown: { color: colors.gold, fontSize: 11, fontFamily: fonts.semibold },
+  liveLabel: { color: colors.red, fontSize: 11, fontFamily: fonts.semibold },
   teamsRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   teamCol: { flex: 1, alignItems: "center", gap: 8 },
   teamName: { color: colors.ink, fontSize: 13, fontFamily: fonts.bold, textAlign: "center" },
   vsCol: { alignItems: "center", paddingHorizontal: 8 },
   vs: { color: colors.inkFaint, fontSize: 13, fontFamily: fonts.display },
+  liveScore: { color: colors.ink, fontSize: 18, fontFamily: fonts.display },
   vsTime: { color: colors.inkFaint, fontSize: 12, fontFamily: fonts.regular, marginTop: 4 },
   dateRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 12 },
   dateText: { color: colors.inkDim, fontSize: 12, fontFamily: fonts.regular },

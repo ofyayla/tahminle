@@ -53,6 +53,62 @@ export type CurrentUser = {
   createdAt: string;
 };
 
+// Mirrors lib/data.ts's LeaderboardRow — ranking is by weekly points, not
+// balance (see lib/scoring.ts on the backend).
+export type LeaderboardRow = {
+  rank: number;
+  id: string;
+  displayName: string;
+  favoriteTeam: TeamCode | null;
+  points: number;
+  correct: number;
+  total: number;
+  accuracy: number;
+  isYou: boolean;
+};
+
+export type TransferTarget = { id: string; displayName: string; favoriteTeam: TeamCode | null };
+
+export type TransferHistoryItem = {
+  id: string;
+  direction: "in" | "out";
+  amount: number;
+  note: string | null;
+  counterparty: string;
+  createdAt: string;
+};
+
+export type ReceivedGift = {
+  id: string;
+  from: string;
+  price: number;
+  stake: number;
+  opened: boolean;
+  createdAt: string;
+  pick: {
+    match: string;
+    kickoff: string;
+    market: string;
+    label: string;
+    odds: number;
+    status: string;
+    payout: number | null;
+  } | null;
+};
+
+export type SentGift = {
+  id: string;
+  to: string;
+  price: number;
+  fee: number;
+  opened: boolean;
+  createdAt: string;
+  match: string;
+  label: string;
+  odds: number;
+  status: string;
+};
+
 export const api = {
   login: (email: string, password: string) =>
     request<{ ok: true; token: string; user: { id: string; email: string; displayName: string } }>(
@@ -116,26 +172,54 @@ export const api = {
 
   getLeaderboard: () =>
     request<{
-      ranked: {
-        rank: number;
-        id: string;
-        displayName: string;
-        favoriteTeam: TeamCode | null;
-        balance: number;
-        isYou: boolean;
-      }[];
-      you: { rank: number; balance: number } | null;
+      ranked: LeaderboardRow[];
+      you: LeaderboardRow | null;
       totalPlayers: number;
+      seasonStart: string;
+      seasonEnd: string;
       feed: {
         id: string;
         displayName: string;
         favoriteTeam: TeamCode | null;
         market: string;
         choice: string;
+        stake: number;
         homeTeam: string;
         awayTeam: string;
         isYou: boolean;
         at: string;
       }[];
     }>("/api/leaderboard"),
+
+  getTransfers: () =>
+    request<{
+      targets: TransferTarget[];
+      history: TransferHistoryItem[];
+      limits: { min: number; max: number };
+    }>("/api/transfers"),
+
+  sendTransfer: (recipientId: string, amount: number, note: string | null) =>
+    request<{ ok: true; transferId: string }>("/api/transfers", {
+      method: "POST",
+      body: JSON.stringify({ recipientId, amount, note }),
+    }),
+
+  getGifts: () =>
+    request<{
+      received: ReceivedGift[];
+      sent: SentGift[];
+      limits: { min: number; max: number };
+    }>("/api/gifts"),
+
+  sendGift: (recipientId: string, price: number) =>
+    request<{ ok: true; giftId: string; fee: number }>("/api/gifts", {
+      method: "POST",
+      body: JSON.stringify({ recipientId, price }),
+    }),
+
+  openGift: (openGiftId: string) =>
+    request<{ ok: true }>("/api/gifts", {
+      method: "POST",
+      body: JSON.stringify({ openGiftId }),
+    }),
 };

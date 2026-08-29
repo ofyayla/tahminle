@@ -3,12 +3,16 @@ import { useFocusEffect } from "expo-router";
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InfoAccordion from "@/components/InfoAccordion";
+import TransferPanel from "@/components/TransferPanel";
+import GiftPanel from "@/components/GiftPanel";
 import { IconCheck, IconCirclePlus, IconInfo, IconLock, IconShield, IconTrendUpArrow, IconWallet, IconX } from "@/components/icons";
 import { api } from "@/lib/api";
 import { formatMatchDate, formatTime, formatTL } from "@/lib/format";
 import { colors, fonts, radii } from "@/lib/theme";
 
 type WalletData = Awaited<ReturnType<typeof api.getWallet>>;
+type TransferData = Awaited<ReturnType<typeof api.getTransfers>>;
+type GiftData = Awaited<ReturnType<typeof api.getGifts>>;
 
 const ACTIVITY_ICON: Record<string, { Icon: (p: { size: number; color: string }) => React.ReactNode; bg: string; color: string }> = {
   lock: { Icon: IconLock, bg: `${colors.red}1A`, color: colors.red },
@@ -19,12 +23,20 @@ const ACTIVITY_ICON: Record<string, { Icon: (p: { size: number; color: string })
 
 export default function CuzdanScreen() {
   const [data, setData] = useState<WalletData | null>(null);
+  const [transfers, setTransfers] = useState<TransferData | null>(null);
+  const [gifts, setGifts] = useState<GiftData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    const res = await api.getWallet();
-    setData(res);
+    const [wallet, transferData, giftData] = await Promise.all([
+      api.getWallet(),
+      api.getTransfers(),
+      api.getGifts(),
+    ]);
+    setData(wallet);
+    setTransfers(transferData);
+    setGifts(giftData);
   }, []);
 
   useFocusEffect(
@@ -50,6 +62,12 @@ export default function CuzdanScreen() {
 
   const { wallet, activity } = data;
   const weekChangePct = data.startBalance > 0 ? (wallet.weekChange / data.startBalance) * 100 : 0;
+  // `wallet.total` is now just the available balance — money locked in an open
+  // prediction is already spent. The two bars still want to show the split of
+  // "what's in play", so they need their own denominator.
+  const inPlayTotal = wallet.available + wallet.lockedInOpen;
+  const availablePct = inPlayTotal > 0 ? Math.round((wallet.available / inPlayTotal) * 100) : 0;
+  const lockedPct = inPlayTotal > 0 ? Math.round((wallet.lockedInOpen / inPlayTotal) * 100) : 0;
 
   return (
     <SafeAreaView style={styles.flex} edges={["top"]}>
@@ -107,7 +125,7 @@ export default function CuzdanScreen() {
             </View>
             <Text style={styles.gridValue}>{formatTL(wallet.available)}</Text>
             <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${wallet.total > 0 ? Math.round((wallet.available / wallet.total) * 100) : 0}%`, backgroundColor: colors.green }]} />
+              <View style={[styles.progressFill, { width: `${availablePct}%`, backgroundColor: colors.green }]} />
             </View>
           </View>
 
@@ -118,7 +136,7 @@ export default function CuzdanScreen() {
             </View>
             <Text style={styles.gridValue}>{formatTL(wallet.lockedInOpen)}</Text>
             <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${wallet.total > 0 ? Math.round((wallet.lockedInOpen / wallet.total) * 100) : 0}%`, backgroundColor: colors.gold }]} />
+              <View style={[styles.progressFill, { width: `${lockedPct}%`, backgroundColor: colors.gold }]} />
             </View>
           </View>
 
@@ -146,6 +164,29 @@ export default function CuzdanScreen() {
             <Text style={styles.gridFooterText}>Başlangıçtan beri</Text>
           </View>
         </View>
+
+        {transfers && (
+          <View style={{ marginBottom: 12 }}>
+            <TransferPanel
+              targets={transfers.targets}
+              history={transfers.history}
+              available={wallet.available}
+              onDone={load}
+            />
+          </View>
+        )}
+
+        {gifts && (
+          <View style={{ marginBottom: 20 }}>
+            <GiftPanel
+              targets={transfers?.targets ?? []}
+              received={gifts.received}
+              sent={gifts.sent}
+              available={wallet.available}
+              onDone={load}
+            />
+          </View>
+        )}
 
         <Text style={styles.sectionTitle}>Son Hareketler</Text>
         <Text style={[styles.sectionSub, { marginBottom: 12 }]}>Her işlem bir maç veya sistem olayına bağlıdır.</Text>

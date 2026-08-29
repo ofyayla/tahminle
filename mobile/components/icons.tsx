@@ -180,3 +180,28 @@ export function IconPerson({ size, color = "currentColor" }: IconProps) {
     </Svg>
   );
 }
+
+export function IconArrowRight({ size, color = "currentColor" }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Path d="M4 12h13M13 6l6 6-6 6" {...stroke(color)} />
+    </Svg>
+  );
+}
+
+export function IconGift({ size, color = "currentColor" }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Rect x={3} y={8} width={18} height={13} rx={2} {...stroke(color)} />
+      <Path d="M12 8v13M3 12h18M12 8s-1-4-4-4-2 4 4 4zM12 8s1-4 4-4 2 4-4 4z" {...stroke(color)} />
+    </Svg>
+  );
+}
+
+export function IconSparkle({ size, color = "currentColor" }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" {...stroke(color)} />
+    </Svg>
+  );
+}

@@ -2,8 +2,9 @@ import { useCallback, useMemo, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { ActivityIndicator, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import InfoAccordion from "@/components/InfoAccordion";
 import { api } from "@/lib/api";
-import { formatTL } from "@/lib/format";
+import { formatMatchDate, formatTL } from "@/lib/format";
 import { getChoiceLabel, type MarketCode } from "@/lib/markets";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
 import { colors, fonts, radii } from "@/lib/theme";
@@ -76,18 +77,32 @@ export default function SiralamaScreen() {
           <View>
             <Text style={styles.eyebrow}>Taraftar Ligi</Text>
             <Text style={styles.title}>Sıralama</Text>
-            <Text style={styles.pageSub}>Sanal bakiyene göre diğer taraftarlar arasındaki yerin.</Text>
+            <Text style={styles.pageSub}>
+              Bu haftanın doğru tahmin puanlarına göre sıralanıyorsun. Bakiye değil, isabet konuşuyor.
+            </Text>
 
             {data.you && (
               <View style={styles.youCard}>
-                <View>
-                  <Text style={styles.youLabel}>Senin Sıran</Text>
-                  <Text style={styles.youRank}>#{data.you.rank}</Text>
+                <View style={styles.youTopRow}>
+                  <View>
+                    <Text style={styles.youLabel}>Senin Sıran</Text>
+                    <Text style={styles.youRank}>#{data.you.rank}</Text>
+                    <Text style={styles.youTotal}>{data.totalPlayers} taraftar arasında</Text>
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={styles.youPoints}>{data.you.points}</Text>
+                    <Text style={styles.youTotal}>puan</Text>
+                    <Text style={styles.youTotal}>
+                      {data.you.total > 0
+                        ? `${data.you.correct}/${data.you.total} · %${data.you.accuracy}`
+                        : "tahmin yok"}
+                    </Text>
+                  </View>
                 </View>
-                <View style={{ alignItems: "flex-end" }}>
-                  <Text style={styles.youBalance}>{formatTL(data.you.balance)}</Text>
-                  <Text style={styles.youTotal}>{data.totalPlayers} taraftar arasında</Text>
-                </View>
+                <Text style={styles.seasonNote}>
+                  Sezon {formatMatchDate(new Date(new Date(data.seasonEnd).getTime() - 1))} akşamı
+                  kapanıyor, Pazartesi sıfırlanır.
+                </Text>
               </View>
             )}
 
@@ -122,11 +137,15 @@ export default function SiralamaScreen() {
                 <Text style={styles.rowName} numberOfLines={1}>
                   {item.displayName} {item.isYou && <Text style={{ color: colors.gold }}>(Sen)</Text>}
                 </Text>
-                <Text style={styles.rowTeam}>{meta?.name ?? "Takım seçilmedi"}</Text>
+                <Text style={styles.rowTeam}>
+                  {item.total > 0
+                    ? `${item.correct}/${item.total} doğru · %${item.accuracy} isabet`
+                    : "Bu hafta henüz tahmin yok"}
+                </Text>
               </View>
               <View style={{ alignItems: "flex-end" }}>
-                <Text style={styles.rowBalance}>{formatTL(item.balance)}</Text>
-                <Text style={styles.rowBalanceLabel}>bakiye</Text>
+                <Text style={styles.rowBalance}>{item.points}</Text>
+                <Text style={styles.rowBalanceLabel}>puan</Text>
               </View>
             </View>
           );
@@ -134,6 +153,17 @@ export default function SiralamaScreen() {
         ListEmptyComponent={<Text style={styles.empty}>Bu filtrede henüz taraftar yok.</Text>}
         ListFooterComponent={
           <View style={{ marginTop: 8 }}>
+            <View style={{ marginBottom: 20 }}>
+              <InfoAccordion title="Puanlar nasıl hesaplanır?" subtitle="Haftalık sezon ve isabet puanı">
+                Doğru bilinen her tahmin, kilitlenen oranın 10 katı kadar puan kazandırır — 2.40
+                oranlı bir tahmin 24 puan eder. Yanlış tahmin puan kaybettirmez, sadece isabet
+                yüzdeni düşürür. Ne kadar sanal bakiye yatırdığın puanı etkilemez, bu yüzden yüksek
+                bakiye sıralamada avantaj sağlamaz. Tek bir tahminden en fazla 100 puan alınabilir.
+                Hediye edilen sürpriz kuponlar seçimi sana ait olmadığı için sıralamaya girmez.
+                Sezon her Pazartesi 00:00'da sıfırlanır.
+              </InfoAccordion>
+            </View>
+
             <Text style={styles.sectionTitle}>Topluluk Akışı</Text>
             <Text style={styles.sectionSub}>Grubun içindeki taraftarlar hangi maça ne oynadı.</Text>
             {data.feed.length === 0 ? (
@@ -153,18 +183,21 @@ export default function SiralamaScreen() {
                         )}
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.feedText} numberOfLines={1}>
-                          <Text style={styles.feedName}>
+                        <View style={styles.feedHeadRow}>
+                          <Text style={styles.feedName} numberOfLines={1}>
                             {item.displayName} {item.isYou && <Text style={{ color: colors.gold }}>(Sen)</Text>}
-                          </Text>{" "}
-                          <Text style={styles.feedMatch}>
-                            {item.homeTeam} – {item.awayTeam} maçında
                           </Text>
+                          <Text style={styles.feedTime}>{timeAgo(item.at)}</Text>
+                        </View>
+                        <Text style={styles.feedMatch} numberOfLines={1}>
+                          {item.homeTeam} – {item.awayTeam}
                         </Text>
-                        <Text style={styles.feedTime}>{timeAgo(item.at)}</Text>
-                      </View>
-                      <View style={styles.feedChip}>
-                        <Text style={styles.feedChipText}>{choiceText}</Text>
+                        <View style={styles.feedBottomRow}>
+                          <View style={styles.feedChip}>
+                            <Text style={styles.feedChipText}>{choiceText}</Text>
+                          </View>
+                          <Text style={styles.feedStake}>{formatTL(item.stake)}</Text>
+                        </View>
                       </View>
                     </View>
                   );
@@ -185,8 +218,6 @@ const styles = StyleSheet.create({
   title: { color: colors.ink, fontSize: 28, fontFamily: fonts.display, marginTop: 6 },
   pageSub: { color: colors.inkDim, fontSize: 13, fontFamily: fonts.regular, marginTop: 8, marginBottom: 16 },
   youCard: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     borderRadius: radii["2xl"],
     borderWidth: 1,
     borderColor: `${colors.gold}66`,
@@ -194,10 +225,20 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
+  youTopRow: { flexDirection: "row", justifyContent: "space-between" },
   youLabel: { color: colors.goldDim, fontSize: 10, fontFamily: fonts.bold, textTransform: "uppercase" },
   youRank: { color: colors.ink, fontSize: 24, fontFamily: fonts.display, marginTop: 2 },
-  youBalance: { color: colors.gold, fontSize: 16, fontFamily: fonts.display },
+  youPoints: { color: colors.gold, fontSize: 24, fontFamily: fonts.display },
   youTotal: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular, marginTop: 2 },
+  seasonNote: {
+    color: colors.inkDim,
+    fontSize: 11,
+    fontFamily: fonts.regular,
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: `${colors.gold}33`,
+    paddingTop: 12,
+  },
   filterRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
   filterChip: { borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, borderRadius: radii.full, paddingHorizontal: 16, paddingVertical: 8 },
   filterChipActive: { backgroundColor: colors.gold, borderColor: colors.gold },
@@ -217,14 +258,16 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.ink, fontSize: 20, fontFamily: fonts.display, marginTop: 8 },
   sectionSub: { color: colors.inkDim, fontSize: 13, fontFamily: fonts.regular, marginTop: 4, marginBottom: 12 },
   feedCard: { borderRadius: radii["2xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card },
-  feedRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 12 },
+  feedRow: { flexDirection: "row", gap: 10, paddingHorizontal: 14, paddingVertical: 12 },
   feedDivider: { borderTopWidth: 1, borderTopColor: colors.cardBorder },
   feedAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.bgElevated, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   avatarTextSm: { color: colors.inkDim, fontFamily: fonts.display, fontSize: 10 },
-  feedText: { fontSize: 13 },
-  feedName: { fontFamily: fonts.bold, color: colors.ink },
-  feedMatch: { fontFamily: fonts.regular, color: colors.inkDim },
-  feedTime: { color: colors.inkFaint, fontSize: 11, fontFamily: fonts.regular, marginTop: 2 },
+  feedHeadRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  feedName: { flex: 1, fontSize: 13, fontFamily: fonts.bold, color: colors.ink },
+  feedMatch: { fontSize: 13, fontFamily: fonts.regular, color: colors.inkDim, marginTop: 2 },
+  feedTime: { color: colors.inkFaint, fontSize: 11, fontFamily: fonts.regular },
+  feedBottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 8 },
   feedChip: { backgroundColor: `${colors.gold}26`, borderRadius: radii.full, paddingHorizontal: 10, paddingVertical: 4 },
   feedChipText: { color: colors.gold, fontFamily: fonts.bold, fontSize: 11 },
+  feedStake: { color: colors.ink, fontFamily: fonts.display, fontSize: 13 },
 });

@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { ensureFreshMatches } from "./scraper";
 import { settleDueMatches, refreshMatchStatuses } from "./settlement";
+import { currentSeasonEnd, currentSeasonStart, pointsFor } from "./scoring";
 
 export async function syncMatchState() {
   try {
@@ -223,22 +224,85 @@ export async function getCommunityFeed(currentUserId: string, limit = 15): Promi
   }));
 }
 
+export type LeaderboardRow = {
+  rank: number;
+  id: string;
+  displayName: string;
+  favoriteTeam: string | null;
+  points: number;
+  correct: number;
+  total: number;
+  accuracy: number; // 0-100, 0 when nothing has settled yet
+  isYou: boolean;
+};
+
+// Ranks players by points earned in the current week (see lib/scoring.ts),
+// not by balance. Everyone is listed, including players who haven't had a
+// prediction settle this week — they sit at the bottom on 0 rather than
+// vanishing from the board.
 export async function getLeaderboard(currentUserId: string) {
-  const users = await prisma.user.findMany({
-    orderBy: { balance: "desc" },
-    select: { id: true, displayName: true, favoriteTeam: true, balance: true },
+  const seasonStart = currentSeasonStart();
+
+  const [users, settled] = await Promise.all([
+    prisma.user.findMany({
+      select: { id: true, displayName: true, favoriteTeam: true },
+    }),
+    prisma.prediction.findMany({
+      where: {
+        status: { in: ["won", "lost"] },
+        settledAt: { gte: seasonStart },
+        // Gifted coupons are drawn at random by lib/gifts.ts and staked by
+        // someone else — the recipient never made that call, so it can't
+        // count toward how well they read a match.
+        gift: { is: null },
+      },
+      select: { userId: true, status: true, oddsAtPick: true },
+    }),
+  ]);
+
+  const tally = new Map<string, { points: number; correct: number; total: number }>();
+  for (const p of settled) {
+    const bucket = tally.get(p.userId) ?? { points: 0, correct: 0, total: 0 };
+    bucket.total++;
+    if (p.status === "won") {
+      bucket.correct++;
+      bucket.points += pointsFor(p.oddsAtPick);
+    }
+    tally.set(p.userId, bucket);
+  }
+
+  const scored = users.map((u) => {
+    const t = tally.get(u.id) ?? { points: 0, correct: 0, total: 0 };
+    return {
+      id: u.id,
+      displayName: u.displayName,
+      favoriteTeam: u.favoriteTeam,
+      points: t.points,
+      correct: t.correct,
+      total: t.total,
+      accuracy: t.total > 0 ? Math.round((t.correct / t.total) * 100) : 0,
+      isYou: u.id === currentUserId,
+    };
   });
 
-  const ranked = users.map((u, i) => ({
-    rank: i + 1,
-    id: u.id,
-    displayName: u.displayName,
-    favoriteTeam: u.favoriteTeam,
-    balance: u.balance,
-    isYou: u.id === currentUserId,
-  }));
+  // Points first; accuracy then volume break ties, so two players on equal
+  // points are separated by how efficiently they got there.
+  scored.sort(
+    (a, b) =>
+      b.points - a.points ||
+      b.accuracy - a.accuracy ||
+      b.correct - a.correct ||
+      a.displayName.localeCompare(b.displayName, "tr")
+  );
 
+  const ranked: LeaderboardRow[] = scored.map((s, i) => ({ rank: i + 1, ...s }));
   const you = ranked.find((r) => r.isYou) ?? null;
 
-  return { ranked, you, totalPlayers: ranked.length };
+  return {
+    ranked,
+    you,
+    totalPlayers: ranked.length,
+    seasonStart: seasonStart.toISOString(),
+    seasonEnd: currentSeasonEnd().toISOString(),
+  };
 }
