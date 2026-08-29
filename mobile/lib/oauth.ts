@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as AppleAuthentication from "expo-apple-authentication";
+import * as Device from "expo-device";
 import * as AuthSession from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
@@ -172,7 +173,16 @@ export async function signInWithApple(): Promise<AppleResult | null> {
       ],
     });
 
-    if (!credential.identityToken) throw new Error("Apple kimlik anahtarı alınamadı.");
+    // NotConfiguredError rather than a plain Error: both of these are
+    // environment problems the user can act on, and the UI shows this class's
+    // message verbatim instead of replacing it with a generic one.
+    if (!credential.identityToken) {
+      throw new NotConfiguredError(
+        Device.isDevice
+          ? "Apple kimlik anahtarı alınamadı. Cihazın Ayarlar'da bir Apple Kimliği'yle oturum açmış olması gerekiyor."
+          : "Simülatör Apple kimlik anahtarı vermedi. Apple ile giriş simülatörde güvenilir çalışmaz — gerçek cihazda dene."
+      );
+    }
 
     // Apple hands over the name exactly once — on the first authorisation —
     // and never again, not even in the token. Forward it now or lose it.
@@ -183,10 +193,23 @@ export async function signInWithApple(): Promise<AppleResult | null> {
 
     return { idToken: credential.identityToken, fullName: name || null };
   } catch (err) {
-    // The user backing out of the sheet is a normal outcome, not an error.
-    if (typeof err === "object" && err && (err as { code?: string }).code === "ERR_REQUEST_CANCELED") {
-      return null;
+    const cancelled =
+      typeof err === "object" && err && (err as { code?: string }).code === "ERR_REQUEST_CANCELED";
+
+    if (cancelled) {
+      // On a real device this is the user backing out of the sheet — an
+      // ordinary outcome, so stay silent.
+      if (Device.isDevice) return null;
+
+      // On the simulator it usually isn't a cancel at all: Apple's sheet
+      // accepts the password and then fails, reporting the same code. Left
+      // as a silent null it looked exactly like nothing happening, which is
+      // the worst possible feedback. Say what's going on instead.
+      throw new NotConfiguredError(
+        "Apple ile giriş simülatörde güvenilir çalışmıyor — şifreyi kabul edip sessizce iptal ediyor. Gerçek cihazda dene. (Simülatörde deneyeceksen Ayarlar'dan bir Apple Kimliği'yle oturum açmış olman gerekir.)"
+      );
     }
+
     throw err;
   }
 }
