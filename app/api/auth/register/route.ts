@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/auth";
+import { STARTING_BALANCE, seasonStartFor, weekStartFor } from "@/lib/season";
 
 const schema = z.object({
   email: z.string().email(),
@@ -32,14 +33,19 @@ export async function POST(req: NextRequest) {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
+  const now = new Date();
   const user = await prisma.user.create({
     data: {
       email,
       passwordHash,
       displayName,
       favoriteTeam: favoriteTeam ?? null,
-      balance: 1000,
-      startBalance: 1000,
+      balance: STARTING_BALANCE,
+      startBalance: STARTING_BALANCE,
+      // Stamped at creation so applyPeriodicAdjustments doesn't mistake a
+      // brand-new account for one "overdue" for a reset/top-up.
+      weekAnchor: weekStartFor(now),
+      seasonAnchor: seasonStartFor(now),
     },
   });
 

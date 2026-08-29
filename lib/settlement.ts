@@ -5,15 +5,15 @@ import { getLiveScore } from "./liveScoreScraper";
 import { TRACKED_TEAMS } from "./scraper";
 import { sendPushToUsers, usersWithOpenPredictionsOn } from "./push";
 
-// If no real result is available by this long after kickoff, fall back to an
-// odds-implied simulation rather than leaving predictions stuck open forever.
-// Note: a match dropping out of the pre-match odds bulletin is NOT a useful
-// "abandoned/orphan" signal — every match does that the moment it goes live,
-// since pre-match odds stop applying. There used to be a much shorter
-// fallback window keyed off that signal, which caused essentially every live
-// match to get settled by simulation ~20 minutes after kickoff, while it was
-// still being played. Always give the full grace period instead.
-const SIMULATION_FALLBACK_MS = 115 * 60 * 1000;
+// If no real result is available by this long after kickoff, give up waiting
+// rather than leaving predictions stuck open forever. Note: a match dropping
+// out of the pre-match odds bulletin is NOT a useful "abandoned/orphan"
+// signal — every match does that the moment it goes live, since pre-match
+// odds stop applying. There used to be a much shorter fallback window keyed
+// off that signal, which caused essentially every live match to time out
+// ~20 minutes after kickoff, while it was still being played. Always give
+// the full grace period instead.
+const RESULT_GRACE_MS = 115 * 60 * 1000;
 
 // The Nesine scrape fallback launches a real headless browser (~2-20s) — far
 // too slow to redo on every single page load. Skip it if we scraped this
@@ -26,27 +26,6 @@ const SIMULATION_FALLBACK_MS = 115 * 60 * 1000;
 // would end up paying for the slow scrape itself during that gap, which is
 // exactly the "first load is slow" symptom the cron was meant to eliminate.
 const SCRAPE_THROTTLE_MS = 100 * 1000;
-
-function pickWeighted(weights: Record<string, number>): string {
-  const entries = Object.entries(weights);
-  const total = entries.reduce((sum, [, w]) => sum + w, 0);
-  let r = Math.random() * total;
-  for (const [key, w] of entries) {
-    if (r < w) return key;
-    r -= w;
-  }
-  return entries[entries.length - 1][0];
-}
-
-function pickOutcome1X2(oddsHome: number, oddsDraw: number, oddsAway: number): "1" | "X" | "2" {
-  return pickWeighted({ "1": 1 / oddsHome, X: 1 / oddsDraw, "2": 1 / oddsAway }) as "1" | "X" | "2";
-}
-
-// A binary market (over/under, btts) simulated from its own implied
-// probabilities — independent of the 1X2 result, same as a real match would be.
-function pickBinary(oddsA: number, oddsB: number): boolean {
-  return pickWeighted({ a: 1 / oddsA, b: 1 / oddsB }) === "a";
-}
 
 type MatchResultOutcome = {
   result: "1" | "X" | "2";
@@ -66,26 +45,6 @@ function outcomeFromScore(homeScore: number, awayScore: number): MatchResultOutc
     resultBtts: homeScore > 0 && awayScore > 0,
     homeScore,
     awayScore,
-  };
-}
-
-function simulateOutcome(match: {
-  oddsHome: number;
-  oddsDraw: number;
-  oddsAway: number;
-  over25: number | null;
-  under25: number | null;
-  bttsYes: number | null;
-  bttsNo: number | null;
-}): MatchResultOutcome {
-  return {
-    result: pickOutcome1X2(match.oddsHome, match.oddsDraw, match.oddsAway),
-    resultOver25:
-      match.over25 != null && match.under25 != null ? pickBinary(match.over25, match.under25) : null,
-    resultBtts: match.bttsYes != null && match.bttsNo != null ? pickBinary(match.bttsYes, match.bttsNo) : null,
-    // No real scoreline to fall back on — Maç Skoru (EXTRA) predictions lose by default in this case.
-    homeScore: null,
-    awayScore: null,
   };
 }
 
@@ -159,10 +118,17 @@ export async function settleDueMatches() {
   try {
     realResults = await fetchRealResults();
   } catch (err) {
-    console.error("Gerçek sonuç servisi alınamadı, gerekirse simülasyona düşülecek:", err);
+    console.error("Gerçek sonuç servisi alınamadı, gerekirse maç erteleme/iade akışına düşülecek:", err);
   }
 
   const toSettle: { match: (typeof startedMatches)[number]; outcome: MatchResultOutcome }[] = [];
+  // No confirmed result AND no observed scoreline after the full grace
+  // period — genuinely unknown whether this was even played (postponed,
+  // abandoned, or just a data-feed gap). There's no way to tell those apart
+  // from here, and settling money on a fabricated coin-flip result would be
+  // wrong regardless of which one it was — so these get cancelled and
+  // refunded instead of settled.
+  const toCancel: (typeof startedMatches)[number][] = [];
   const liveScoreUpdates: { matchId: string; homeScore: number; awayScore: number }[] = [];
   const scrapeCandidates: { matchId: string; trackedTeam: string }[] = [];
 
@@ -187,17 +153,17 @@ export async function settleDueMatches() {
 
     const elapsed = now - match.kickoff.getTime();
 
-    if (elapsed > SIMULATION_FALLBACK_MS) {
+    if (elapsed > RESULT_GRACE_MS) {
       // We may already have a real scoreline sitting on the row from an
       // earlier live-score update (real API or the Nesine scrape) even
-      // though nothing ever confirmed the match as "completed" — use it
-      // instead of a coin flip. Only truly simulate when we have no score
-      // data at all.
-      const outcome =
-        match.homeScore != null && match.awayScore != null
-          ? outcomeFromScore(match.homeScore, match.awayScore)
-          : simulateOutcome(match);
-      toSettle.push({ match, outcome });
+      // though nothing ever confirmed the match as "completed" — that's
+      // genuinely observed data, so settle from it. Only cancel when there's
+      // truly nothing to go on.
+      if (match.homeScore != null && match.awayScore != null) {
+        toSettle.push({ match, outcome: outcomeFromScore(match.homeScore, match.awayScore) });
+      } else {
+        toCancel.push(match);
+      }
       continue;
     }
 
@@ -323,7 +289,64 @@ export async function settleDueMatches() {
     })
   );
 
-  return settledCount;
+  let cancelledCount = 0;
+
+  await Promise.all(
+    toCancel.map(async (match) => {
+      // Same claim pattern as settlement: only the run that actually flips
+      // the match out of upcoming/live processes its refunds.
+      const claim = await prisma.match.updateMany({
+        where: { id: match.id, status: { in: ["upcoming", "live"] } },
+        data: { status: "postponed" },
+      });
+      if (claim.count === 0) return;
+      cancelledCount++;
+
+      const refundedByUser = new Map<string, number>();
+
+      await Promise.all(
+        match.predictions.map(async (pred) => {
+          const predClaim = await prisma.prediction.updateMany({
+            where: { id: pred.id, status: "open" },
+            data: { status: "cancelled", payout: null, settledAt: new Date() },
+          });
+          if (predClaim.count === 0) return;
+
+          await prisma.user.update({
+            where: { id: pred.userId },
+            data: { balance: { increment: pred.stake } },
+          });
+
+          refundedByUser.set(pred.userId, (refundedByUser.get(pred.userId) ?? 0) + pred.stake);
+        })
+      );
+
+      await notifyCancelled(match, refundedByUser);
+    })
+  );
+
+  return settledCount + cancelledCount;
+}
+
+// One push per user whose prediction on a postponed/abandoned match was
+// refunded.
+async function notifyCancelled(
+  match: { id: string; homeTeam: string; awayTeam: string },
+  refundedByUser: Map<string, number>
+) {
+  if (refundedByUser.size === 0) return;
+
+  const label = `${match.homeTeam} – ${match.awayTeam}`;
+
+  await Promise.all(
+    [...refundedByUser].map(([userId, amount]) =>
+      sendPushToUsers([userId], {
+        title: "↩️ Maç ertelendi",
+        body: `${label} · ₺${amount.toLocaleString("tr-TR")} bakiyene iade edildi`,
+        data: { type: "cancelled", matchId: match.id },
+      })
+    )
+  );
 }
 
 // One push per user per settled match, summarising how their picks did.

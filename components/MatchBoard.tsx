@@ -59,6 +59,8 @@ export default function MatchBoard({ matches, available }: { matches: MatchDTO[]
             ) ?? 0
           }
           available={available}
+          weekBudget={selection.match.weekBudget}
+          matchBudget={selection.match.matchBudget}
           onClose={() => setSelection(null)}
         />
       )}

@@ -9,7 +9,8 @@ export default async function HesabimPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const { you, totalPlayers } = await getLeaderboard(user.id);
+  const { week } = await getLeaderboard(user.id);
+  const { you, totalPlayers } = week;
   const meta = user.favoriteTeam ? TEAM_META[user.favoriteTeam as TeamCode] : null;
 
   return (

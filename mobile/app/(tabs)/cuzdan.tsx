@@ -5,7 +5,7 @@ import InfoAccordion from "@/components/InfoAccordion";
 import GoldGlow from "@/components/GoldGlow";
 import TransferPanel from "@/components/TransferPanel";
 import GiftPanel from "@/components/GiftPanel";
-import { IconCheck, IconCirclePlus, IconInfo, IconLock, IconShield, IconTrendUpArrow, IconWallet, IconX } from "@/components/icons";
+import { IconCheck, IconCirclePlus, IconInfo, IconLock, IconShield, IconTrendUpArrow, IconUndo, IconWallet, IconX } from "@/components/icons";
 import ErrorBanner from "@/components/ErrorBanner";
 import { api } from "@/lib/api";
 import { useScreenLoad } from "@/lib/useScreenLoad";
@@ -20,6 +20,7 @@ const ACTIVITY_ICON: Record<string, { Icon: (p: { size: number; color: string })
   lock: { Icon: IconLock, bg: `${colors.red}1A`, color: colors.red },
   win: { Icon: IconTrendUpArrow, bg: `${colors.green}1A`, color: colors.green },
   loss: { Icon: IconX, bg: `${colors.red}1A`, color: colors.red },
+  cancel: { Icon: IconUndo, bg: `${colors.inkDim}1A`, color: colors.inkDim },
   system: { Icon: IconInfo, bg: `${colors.gold}26`, color: colors.gold },
 };
 
@@ -106,6 +107,35 @@ export default function CuzdanScreen() {
             <IconShield size={14} color={colors.green} />
             <Text style={styles.heroDisclaimerText}>Gerçek para kullanılmaz · yalnızca sanal tahmin</Text>
           </View>
+        </View>
+
+        <View style={styles.budgetCard}>
+          <View style={styles.budgetHeaderRow}>
+            <View>
+              <Text style={styles.gridLabel}>Bu Haftaki Kasan</Text>
+              <Text style={styles.budgetValue}>
+                {formatTL(wallet.weeklyBudget.used)} / {formatTL(wallet.weeklyBudget.cap)}
+              </Text>
+            </View>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={styles.budgetRemaining}>{formatTL(wallet.weeklyBudget.remaining)}</Text>
+              <Text style={styles.gridFooterText}>kaldı</Text>
+            </View>
+          </View>
+          <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${Math.min(100, Math.round((wallet.weeklyBudget.used / wallet.weeklyBudget.cap) * 100))}%`,
+                  backgroundColor: colors.gold,
+                },
+              ]}
+            />
+          </View>
+          <Text style={styles.budgetNote}>
+            Kendi tahminlerine bu hafta yatırabileceğin toplam tutar — bakiyen ne kadar büyük olursa olsun aynı. Her Pazartesi yenilenir.
+          </Text>
         </View>
 
         <View style={styles.flowHeaderRow}>
@@ -249,6 +279,11 @@ const styles = StyleSheet.create({
   eyebrow: { color: colors.gold, fontSize: 11, fontFamily: fonts.bold, textTransform: "uppercase", letterSpacing: 2 },
   title: { color: colors.ink, fontSize: 28, fontFamily: fonts.display, marginTop: 6, marginBottom: 16 },
   heroCard: { borderRadius: radii["3xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 20, marginBottom: 20, overflow: "hidden" },
+  budgetCard: { borderRadius: radii["2xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 16, marginBottom: 20 },
+  budgetHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 },
+  budgetValue: { color: colors.ink, fontSize: 17, fontFamily: fonts.display, marginTop: 2 },
+  budgetRemaining: { color: colors.gold, fontSize: 14, fontFamily: fonts.display },
+  budgetNote: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular, marginTop: 10 },
   heroTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   heroLabel: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.bold, textTransform: "uppercase" },
   heroValue: { color: colors.gold, fontSize: 32, fontFamily: fonts.display, marginTop: 4 },

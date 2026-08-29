@@ -9,12 +9,16 @@ import type { MatchDTO } from "@/lib/types";
 
 const QUICK_STAKES = [50, 100, 250, 500];
 
+type Budget = { cap: number; used: number; remaining: number };
+
 export default function PredictionSheet({
   match,
   market,
   choice,
   odds,
   available,
+  weekBudget,
+  matchBudget,
   onClose,
 }: {
   match: MatchDTO;
@@ -22,16 +26,22 @@ export default function PredictionSheet({
   choice: string;
   odds: number;
   available: number;
+  weekBudget: Budget;
+  matchBudget: Budget;
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [stake, setStake] = useState(Math.min(100, available));
+  // Kasa iki farklı sınır koyabilir: haftalık toplam (₺1.000) ve bu maça özel
+  // tavan (₺400). Hangisi daha düşükse bet slip'in gerçek tavanı odur.
+  const cap = Math.min(available, weekBudget.remaining, matchBudget.remaining);
+  const [stake, setStake] = useState(Math.min(100, cap));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const potential = Math.round(stake * odds);
   const choiceText = getChoiceLabel(match, market, choice);
   const marketName = getMarketName(market);
+  const matchBinds = matchBudget.remaining < weekBudget.remaining && matchBudget.remaining < available;
 
   async function submit() {
     setError(null);
@@ -41,6 +51,14 @@ export default function PredictionSheet({
     }
     if (stake > available) {
       setError("Sanal bakiyen bu miktar için yeterli değil.");
+      return;
+    }
+    if (stake > weekBudget.remaining) {
+      setError(`Bu hafta için kasan ₺${weekBudget.remaining} kaldı. Kasa her Pazartesi yenilenir.`);
+      return;
+    }
+    if (stake > matchBudget.remaining) {
+      setError(`Bu maça en fazla ₺${matchBudget.cap} yatırabilirsin, ₺${matchBudget.remaining} kaldı.`);
       return;
     }
     setLoading(true);
@@ -91,15 +109,33 @@ export default function PredictionSheet({
           </div>
         </div>
 
+        <div className="mb-3 rounded-xl border border-card-border bg-bg-elevated px-3.5 py-3">
+          <div className="mb-1.5 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-ink-dim">
+            <span>Bu hafta kasan</span>
+            <span>₺{weekBudget.used} / ₺{weekBudget.cap}</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-card-border">
+            <div
+              className="h-full rounded-full bg-gold"
+              style={{ width: `${Math.min(100, Math.round((weekBudget.used / weekBudget.cap) * 100))}%` }}
+            />
+          </div>
+          {matchBinds && (
+            <p className="mt-2 text-[11px] text-ink-dim">
+              Bu maça en fazla {formatTL(matchBudget.cap)} yatırabilirsin — {formatTL(matchBudget.remaining)} kaldı.
+            </p>
+          )}
+        </div>
+
         <div className="mb-3">
           <div className="mb-1.5 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-ink-dim">
             <span>Sanal Stake</span>
-            <span>Kullanılabilir: {formatTL(available)}</span>
+            <span>Kullanılabilir: {formatTL(cap)}</span>
           </div>
           <input
             type="number"
             min={10}
-            max={available}
+            max={cap}
             value={stake}
             onChange={(e) => setStake(Number(e.target.value))}
             className="w-full rounded-xl border border-card-border bg-bg-elevated px-3.5 py-3 text-lg font-display outline-none focus:border-gold"
@@ -109,7 +145,7 @@ export default function PredictionSheet({
               <button
                 key={s}
                 type="button"
-                disabled={s > available}
+                disabled={s > cap}
                 onClick={() => setStake(s)}
                 className="rounded-lg border border-card-border bg-bg-elevated py-2 text-xs font-semibold text-ink-dim enabled:hover:border-gold enabled:hover:text-ink disabled:opacity-30"
               >

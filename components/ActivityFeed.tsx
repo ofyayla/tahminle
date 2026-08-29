@@ -31,6 +31,16 @@ function ActivityIcon({ kind }: { kind: ActivityItem["kind"] }) {
       </div>
     );
   }
+  if (kind === "cancel") {
+    return (
+      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-bg-elevated text-ink-dim">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+          <path d="M9 14L4 9l5-5" />
+          <path d="M4 9h10.5a5.5 5.5 0 010 11H11" />
+        </svg>
+      </div>
+    );
+  }
   return (
     <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gold/15 text-gold">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">

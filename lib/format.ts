@@ -52,3 +52,12 @@ export function formatTime(date: Date): string {
   const hour = p.hour === "24" ? "00" : p.hour;
   return `${hour}:${p.minute}`;
 }
+
+// "24 Ağu – 30 Ağu" for a [start, end) range — end is exclusive (a week/season
+// boundary), so the label is built from the last actual millisecond inside it.
+export function formatDateRange(start: Date, end: Date): string {
+  const last = new Date(end.getTime() - 1);
+  const s = istanbulParts(start);
+  const e = istanbulParts(last);
+  return `${s.day} ${MONTHS[s.month - 1].slice(0, 3)} – ${e.day} ${MONTHS[e.month - 1].slice(0, 3)}`;
+}

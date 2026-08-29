@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUserId } from "@/lib/auth";
-import { getCommunityPulse, getUpcomingMatches, getWalletSummary } from "@/lib/data";
+import { getCommunityPulse, getMatchBudgets, getUpcomingMatches, getWalletSummary } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import type { MatchDTO } from "@/lib/types";
 
@@ -30,7 +30,10 @@ export async function GET() {
     bucket[p.market] = p.choice;
     openByMatchId.set(p.matchId, bucket);
   }
-  const pulseByMatchId = await getCommunityPulse(matches.map((m) => m.id));
+  const [pulseByMatchId, budgetsByMatchId] = await Promise.all([
+    getCommunityPulse(matches.map((m) => m.id)),
+    getMatchBudgets(userId, matches),
+  ]);
 
   const matchDTOs: MatchDTO[] = matches.map((m) => ({
     id: m.id,
@@ -61,6 +64,8 @@ export async function GET() {
     aiAnalysis: m.aiAnalysis,
     openByMarket: openByMatchId.get(m.id) ?? {},
     pulse: pulseByMatchId[m.id] ?? { total: 0, home: 0, draw: 0, away: 0 },
+    weekBudget: budgetsByMatchId.get(m.id)?.weekBudget ?? { cap: 0, used: 0, remaining: 0 },
+    matchBudget: budgetsByMatchId.get(m.id)?.matchBudget ?? { cap: 0, used: 0, remaining: 0 },
   }));
 
   return NextResponse.json({ matches: matchDTOs, available: wallet.available });

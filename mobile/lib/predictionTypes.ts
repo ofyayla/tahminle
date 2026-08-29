@@ -4,7 +4,7 @@ export type PredictionDTO = {
   choice: string;
   stake: number;
   oddsAtPick: number;
-  status: "open" | "won" | "lost";
+  status: "open" | "won" | "lost" | "cancelled";
   payout: number | null;
   createdAt: string;
   settledAt: string | null;

@@ -1,10 +1,13 @@
 import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import InfoAccordion from "@/components/InfoAccordion";
 import ErrorBanner from "@/components/ErrorBanner";
 import { api } from "@/lib/api";
+import type { LeaderboardRow, LeaderboardScope } from "@/lib/api";
 import { useScreenLoad } from "@/lib/useScreenLoad";
-import { formatTL } from "@/lib/format";
+import { formatDateRange, formatTL } from "@/lib/format";
+import { PER_MATCH_CAP, WEEKLY_BUDGET } from "@/lib/season";
 import { getChoiceLabel, type MarketCode } from "@/lib/markets";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
 import { colors, fonts, radii } from "@/lib/theme";
@@ -18,6 +21,10 @@ const FILTERS: { code: TeamCode | "ALL"; label: string }[] = [
   { code: "FB", label: "FB" },
   { code: "BJK", label: "BJK" },
 ];
+const SCOPES: { key: "week" | "season"; label: string }[] = [
+  { key: "week", label: "Bu Hafta" },
+  { key: "season", label: "Sezon" },
+];
 
 function timeAgo(iso: string): string {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -29,8 +36,19 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hours / 24)}g önce`;
 }
 
+function NetAmount({ net, style }: { net: number; style: object }) {
+  const color = net >= 0 ? colors.green : colors.red;
+  return (
+    <Text style={[style, { color }]}>
+      {net >= 0 ? "+" : "−"}
+      {formatTL(Math.abs(net))}
+    </Text>
+  );
+}
+
 export default function SiralamaScreen() {
   const [data, setData] = useState<LeaderboardData | null>(null);
+  const [scope, setScope] = useState<"week" | "season">("week");
   const [filter, setFilter] = useState<TeamCode | "ALL">("ALL");
 
   const load = useCallback(async () => {
@@ -40,14 +58,18 @@ export default function SiralamaScreen() {
 
   const { loading, refreshing, error, refresh } = useScreenLoad(load);
 
+  const active: LeaderboardScope | null = data ? data[scope] : null;
+
   const visible = useMemo(() => {
-    if (!data) return [];
-    return filter === "ALL" ? data.ranked : data.ranked.filter((r) => r.favoriteTeam === filter);
-  }, [data, filter]);
+    if (!active) return [];
+    return filter === "ALL" ? active.ranked : active.ranked.filter((r) => r.favoriteTeam === filter);
+  }, [active, filter]);
+
+  const emptyRowLabel = scope === "week" ? "Bu hafta henüz tahmin yok" : "Bu sezon henüz tahmin yok";
 
   // On a failed load `data` stays null, so falling through to the spinner
   // would leave the screen spinning forever with nothing to act on.
-  if (loading || !data) {
+  if (loading || !data || !active) {
     return (
       <SafeAreaView style={styles.flex} edges={["top"]}>
         {loading ? (
@@ -68,7 +90,7 @@ export default function SiralamaScreen() {
     <SafeAreaView style={styles.flex} edges={["top"]}>
       <FlatList
         data={visible}
-        keyExtractor={(r) => r.id}
+        keyExtractor={(r: LeaderboardRow) => r.id}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl tintColor={colors.gold} refreshing={refreshing} onRefresh={refresh} />}
         ListHeaderComponent={
@@ -76,18 +98,43 @@ export default function SiralamaScreen() {
             <ErrorBanner message={error} />
             <Text style={styles.eyebrow}>Taraftar Ligi</Text>
             <Text style={styles.title}>Sıralama</Text>
-            <Text style={styles.pageSub}>Sanal bakiyene göre diğer taraftarlar arasındaki yerin.</Text>
+            <Text style={styles.pageSub}>
+              Net kârına göre sıralanıyorsun. Bakiyen ne kadar büyük olursa olsun herkesin kasası aynı.
+            </Text>
 
-            {data.you && (
+            <View style={styles.scopeRow}>
+              {SCOPES.map((s) => (
+                <Pressable
+                  key={s.key}
+                  onPress={() => setScope(s.key)}
+                  style={[styles.scopeChip, scope === s.key && styles.scopeChipActive]}
+                >
+                  <Text style={[styles.scopeText, scope === s.key && styles.scopeTextActive]}>{s.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {active.you && (
               <View style={styles.youCard}>
-                <View>
-                  <Text style={styles.youLabel}>Senin Sıran</Text>
-                  <Text style={styles.youRank}>#{data.you.rank}</Text>
+                <View style={styles.youTopRow}>
+                  <View>
+                    <Text style={styles.youLabel}>Senin Sıran</Text>
+                    <Text style={styles.youRank}>#{active.you.rank}</Text>
+                    <Text style={styles.youTotal}>{active.totalPlayers} taraftar arasında</Text>
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <NetAmount net={active.you.net} style={styles.youNet} />
+                    <Text style={styles.youTotal}>net kâr</Text>
+                    <Text style={styles.youTotal}>
+                      {active.you.total > 0
+                        ? `${active.you.correct}/${active.you.total} · %${active.you.accuracy}`
+                        : "tahmin yok"}
+                    </Text>
+                  </View>
                 </View>
-                <View style={{ alignItems: "flex-end" }}>
-                  <Text style={styles.youBalance}>{formatTL(data.you.balance)}</Text>
-                  <Text style={styles.youTotal}>{data.totalPlayers} taraftar arasında</Text>
-                </View>
+                <Text style={styles.seasonNote}>
+                  {formatDateRange(new Date(active.rangeStart), new Date(active.rangeEnd))}
+                </Text>
               </View>
             )}
 
@@ -122,11 +169,15 @@ export default function SiralamaScreen() {
                 <Text style={styles.rowName} numberOfLines={1}>
                   {item.displayName} {item.isYou && <Text style={{ color: colors.gold }}>(Sen)</Text>}
                 </Text>
-                <Text style={styles.rowTeam}>{meta?.name ?? "Takım seçilmedi"}</Text>
+                <Text style={styles.rowTeam}>
+                  {item.total > 0
+                    ? `${item.correct}/${item.total} doğru · %${item.accuracy} isabet`
+                    : emptyRowLabel}
+                </Text>
               </View>
               <View style={{ alignItems: "flex-end" }}>
-                <Text style={styles.rowBalance}>{formatTL(item.balance)}</Text>
-                <Text style={styles.rowBalanceLabel}>bakiye</Text>
+                <NetAmount net={item.net} style={styles.rowBalance} />
+                <Text style={styles.rowBalanceLabel}>net kâr</Text>
               </View>
             </View>
           );
@@ -134,6 +185,17 @@ export default function SiralamaScreen() {
         ListEmptyComponent={<Text style={styles.empty}>Bu filtrede henüz taraftar yok.</Text>}
         ListFooterComponent={
           <View style={{ marginTop: 8 }}>
+            <View style={{ marginBottom: 20 }}>
+              <InfoAccordion title="Sıralama nasıl hesaplanır?" subtitle="Haftalık kasa ve net kâr" defaultOpen={false}>
+                Sıralamanın birimi puan değil, lira — kazandığın tutar eksi yatırdığın tutar. Bir maç
+                haftasında kendi tahminlerine yatırabileceğin toplam tutar ₺{WEEKLY_BUDGET} ile, tek bir
+                maça yatırabileceğin tutar ise ₺{PER_MATCH_CAP} ile sınırlı — bu yüzden yüksek bakiye
+                sıralamada avantaj sağlamaz, herkes aynı kasayla oynar. Hediye edilen sürpriz kuponlar
+                seçimi sana ait olmadığı için sıralamaya girmez. Haftalık sıralama her Pazartesi
+                sıfırlanır; sezonluk sıralama son 4 haftanın toplamıdır ve sezon sonunda sıfırlanır.
+              </InfoAccordion>
+            </View>
+
             <Text style={styles.sectionTitle}>Topluluk Akışı</Text>
             <Text style={styles.sectionSub}>Grubun içindeki taraftarlar hangi maça ne oynadı.</Text>
             {data.feed.length === 0 ? (
@@ -196,9 +258,20 @@ const styles = StyleSheet.create({
   eyebrow: { color: colors.gold, fontSize: 11, fontFamily: fonts.bold, textTransform: "uppercase", letterSpacing: 2 },
   title: { color: colors.ink, fontSize: 28, fontFamily: fonts.display, marginTop: 6 },
   pageSub: { color: colors.inkDim, fontSize: 13, fontFamily: fonts.regular, marginTop: 8, marginBottom: 16 },
+  scopeRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
+  scopeChip: {
+    flex: 1,
+    alignItems: "center",
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
+    paddingVertical: 10,
+  },
+  scopeChipActive: { backgroundColor: colors.gold, borderColor: colors.gold },
+  scopeText: { color: colors.inkDim, fontSize: 12, fontFamily: fonts.bold },
+  scopeTextActive: { color: colors.bg },
   youCard: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     borderRadius: radii["2xl"],
     borderWidth: 1,
     borderColor: `${colors.gold}66`,
@@ -206,10 +279,20 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
+  youTopRow: { flexDirection: "row", justifyContent: "space-between" },
   youLabel: { color: colors.goldDim, fontSize: 10, fontFamily: fonts.bold, textTransform: "uppercase" },
   youRank: { color: colors.ink, fontSize: 24, fontFamily: fonts.display, marginTop: 2 },
-  youBalance: { color: colors.gold, fontSize: 16, fontFamily: fonts.display },
+  youNet: { fontSize: 24, fontFamily: fonts.display },
   youTotal: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular, marginTop: 2 },
+  seasonNote: {
+    color: colors.inkDim,
+    fontSize: 11,
+    fontFamily: fonts.regular,
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: `${colors.gold}33`,
+    paddingTop: 12,
+  },
   filterRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
   filterChip: { borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, borderRadius: radii.full, paddingHorizontal: 16, paddingVertical: 8 },
   filterChipActive: { backgroundColor: colors.gold, borderColor: colors.gold },
@@ -223,7 +306,7 @@ const styles = StyleSheet.create({
   avatarText: { color: colors.inkDim, fontFamily: fonts.display, fontSize: 11 },
   rowName: { color: colors.ink, fontFamily: fonts.bold, fontSize: 13 },
   rowTeam: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular, marginTop: 2 },
-  rowBalance: { color: colors.gold, fontFamily: fonts.display, fontSize: 13 },
+  rowBalance: { fontFamily: fonts.display, fontSize: 13 },
   rowBalanceLabel: { color: colors.inkFaint, fontSize: 10, fontFamily: fonts.regular, marginTop: 2 },
   empty: { textAlign: "center", color: colors.inkDim, fontSize: 13, fontFamily: fonts.regular, marginVertical: 12 },
   sectionTitle: { color: colors.ink, fontSize: 20, fontFamily: fonts.display, marginTop: 8 },

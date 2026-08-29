@@ -109,6 +109,30 @@ export default async function CuzdanPage() {
         </div>
       </section>
 
+      <section className="rounded-2xl border border-card-border bg-card p-4">
+        <div className="mb-2 flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-ink-dim">Bu Haftaki Kasan</div>
+            <div className="font-display text-lg mt-0.5">
+              {formatTL(wallet.weeklyBudget.used)} / {formatTL(wallet.weeklyBudget.cap)}
+            </div>
+          </div>
+          <div className="text-right text-xs text-ink-dim">
+            <div className="font-display text-sm text-gold">{formatTL(wallet.weeklyBudget.remaining)}</div>
+            kaldı
+          </div>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-bg-elevated">
+          <div
+            className="h-full rounded-full bg-gold"
+            style={{ width: `${Math.min(100, Math.round((wallet.weeklyBudget.used / wallet.weeklyBudget.cap) * 100))}%` }}
+          />
+        </div>
+        <p className="mt-2 text-[11px] text-ink-dim">
+          Kendi tahminlerine bu hafta yatırabileceğin toplam tutar — bakiyen ne kadar büyük olursa olsun aynı. Her Pazartesi yenilenir.
+        </p>
+      </section>
+
       <section>
         <div className="mb-3 flex items-end justify-between">
           <h2 className="font-display text-xl">Bakiye akışı</h2>

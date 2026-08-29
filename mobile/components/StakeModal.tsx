@@ -9,12 +9,16 @@ import { colors, fonts, radii } from "@/lib/theme";
 
 const QUICK_STAKES = [50, 100, 250, 500];
 
+type Budget = { cap: number; used: number; remaining: number };
+
 export default function StakeModal({
   match,
   market,
   choice,
   odds,
   available,
+  weekBudget,
+  matchBudget,
   onClose,
   onSuccess,
 }: {
@@ -23,10 +27,15 @@ export default function StakeModal({
   choice: string;
   odds: number;
   available: number;
+  weekBudget: Budget;
+  matchBudget: Budget;
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [stake, setStake] = useState(String(Math.min(100, available)));
+  // Kasa iki farklı sınır koyabilir: haftalık toplam (₺1.000) ve bu maça özel
+  // tavan (₺400). Hangisi daha düşükse bet slip'in gerçek tavanı odur.
+  const cap = Math.min(available, weekBudget.remaining, matchBudget.remaining);
+  const [stake, setStake] = useState(String(Math.min(100, cap)));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,6 +43,8 @@ export default function StakeModal({
   const potential = Math.round(stakeNum * odds);
   const choiceText = getChoiceLabel(match, market, choice);
   const marketName = getMarketName(market);
+  const matchBinds = matchBudget.remaining < weekBudget.remaining && matchBudget.remaining < available;
+  const weekPct = weekBudget.cap > 0 ? Math.min(100, Math.round((weekBudget.used / weekBudget.cap) * 100)) : 0;
 
   async function submit() {
     setError(null);
@@ -43,6 +54,14 @@ export default function StakeModal({
     }
     if (stakeNum > available) {
       setError("Sanal bakiyen bu miktar için yeterli değil.");
+      return;
+    }
+    if (stakeNum > weekBudget.remaining) {
+      setError(`Bu hafta için kasan ₺${weekBudget.remaining} kaldı. Kasa her Pazartesi yenilenir.`);
+      return;
+    }
+    if (stakeNum > matchBudget.remaining) {
+      setError(`Bu maça en fazla ₺${matchBudget.cap} yatırabilirsin, ₺${matchBudget.remaining} kaldı.`);
       return;
     }
     setLoading(true);
@@ -83,18 +102,33 @@ export default function StakeModal({
             </View>
           </View>
 
+          <View style={styles.budgetBox}>
+            <View style={styles.budgetHeaderRow}>
+              <Text style={styles.stakeLabel}>Bu hafta kasan</Text>
+              <Text style={styles.budgetValue}>₺{weekBudget.used} / ₺{weekBudget.cap}</Text>
+            </View>
+            <View style={styles.budgetBar}>
+              <View style={[styles.budgetBarFill, { width: `${weekPct}%` }]} />
+            </View>
+            {matchBinds && (
+              <Text style={styles.budgetNote}>
+                Bu maça en fazla {formatTL(matchBudget.cap)} yatırabilirsin — {formatTL(matchBudget.remaining)} kaldı.
+              </Text>
+            )}
+          </View>
+
           <View style={styles.stakeHeaderRow}>
             <Text style={styles.stakeLabel}>Sanal Stake</Text>
-            <Text style={styles.stakeAvailable}>Kullanılabilir: {formatTL(available)}</Text>
+            <Text style={styles.stakeAvailable}>Kullanılabilir: {formatTL(cap)}</Text>
           </View>
           <TextInput style={styles.input} keyboardType="number-pad" value={stake} onChangeText={setStake} />
           <View style={styles.quickRow}>
             {QUICK_STAKES.map((s) => (
               <Pressable
                 key={s}
-                disabled={s > available}
+                disabled={s > cap}
                 onPress={() => setStake(String(s))}
-                style={[styles.quickChip, s > available && { opacity: 0.3 }]}
+                style={[styles.quickChip, s > cap && { opacity: 0.3 }]}
               >
                 <Text style={styles.quickChipText}>₺{s}</Text>
               </Pressable>
@@ -148,7 +182,7 @@ const styles = StyleSheet.create({
     backgroundColor: `${colors.gold}1A`,
     borderRadius: radii["2xl"],
     padding: 12,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   pickMarket: { color: colors.goldDim, fontSize: 11, textTransform: "uppercase", fontFamily: fonts.regular, marginBottom: 4 },
   pickRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
@@ -163,6 +197,19 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     overflow: "hidden",
   },
+  budgetBox: {
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.bgElevated,
+    borderRadius: radii.xl,
+    padding: 12,
+    marginBottom: 12,
+  },
+  budgetHeaderRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
+  budgetValue: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.semibold },
+  budgetBar: { height: 6, borderRadius: radii.full, backgroundColor: colors.cardBorder, overflow: "hidden" },
+  budgetBarFill: { height: "100%", borderRadius: radii.full, backgroundColor: colors.gold },
+  budgetNote: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular, marginTop: 8 },
   stakeHeaderRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
   stakeLabel: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.semibold, textTransform: "uppercase" },
   stakeAvailable: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.semibold },

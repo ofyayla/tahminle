@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth";
 import { getOddsFor, isValidChoice, type MarketCode } from "@/lib/markets";
 import { getPerformanceStats, getPredictions, syncMatchState } from "@/lib/data";
+import { PER_MATCH_CAP, WEEKLY_BUDGET, weekEndFor, weekStartFor } from "@/lib/season";
 import type { PredictionDTO } from "@/lib/predictionTypes";
 
 // syncMatchState() can fall back to a headless-browser live-score scrape
@@ -85,7 +86,12 @@ export async function POST(req: NextRequest) {
   }
   if (match.status !== "upcoming") {
     return NextResponse.json(
-      { error: "Bu maç başladı, artık tahmin yapılamaz." },
+      {
+        error:
+          match.status === "postponed"
+            ? "Bu maç ertelendi, tahmin oluşturulamaz."
+            : "Bu maç başladı, artık tahmin yapılamaz.",
+      },
       { status: 400 }
     );
   }
@@ -107,6 +113,47 @@ export async function POST(req: NextRequest) {
   if (existingOpen) {
     return NextResponse.json(
       { error: "Bu market için zaten açık bir tahminin var." },
+      { status: 400 }
+    );
+  }
+
+  // Haftalık kasa (₺1.000/hafta) ve tek maç tavanı (₺400/maç) — kendi
+  // tahminlerinle sınırlı, hediye edilen kuponlar dahil değil. Bir maç
+  // yalnızca tek bir haftaya ait olduğundan tavan haftadan bağımsız
+  // sorgulanır.
+  const weekStart = weekStartFor(match.kickoff);
+  const weekEnd = weekEndFor(match.kickoff);
+  const [weeklyUsedRows, matchUsedRows] = await Promise.all([
+    prisma.prediction.findMany({
+      where: {
+        userId,
+        gift: { is: null },
+        status: { in: ["open", "won", "lost"] },
+        match: { kickoff: { gte: weekStart, lt: weekEnd } },
+      },
+      select: { stake: true },
+    }),
+    prisma.prediction.findMany({
+      where: { userId, matchId, gift: { is: null }, status: { in: ["open", "won", "lost"] } },
+      select: { stake: true },
+    }),
+  ]);
+  const weeklyUsed = weeklyUsedRows.reduce((sum, r) => sum + r.stake, 0);
+  const matchUsed = matchUsedRows.reduce((sum, r) => sum + r.stake, 0);
+
+  if (weeklyUsed + stake > WEEKLY_BUDGET) {
+    return NextResponse.json(
+      {
+        error: `Bu hafta için kasan ₺${WEEKLY_BUDGET - weeklyUsed} kaldı. Kasa her Pazartesi yenilenir.`,
+      },
+      { status: 400 }
+    );
+  }
+  if (matchUsed + stake > PER_MATCH_CAP) {
+    return NextResponse.json(
+      {
+        error: `Bu maça en fazla ₺${PER_MATCH_CAP} yatırabilirsin, ₺${PER_MATCH_CAP - matchUsed} kaldı.`,
+      },
       { status: 400 }
     );
   }

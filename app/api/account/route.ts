@@ -9,7 +9,7 @@ export async function GET() {
     return NextResponse.json({ error: "Giriş yapmalısın." }, { status: 401 });
   }
 
-  const [user, { you, totalPlayers }] = await Promise.all([
+  const [user, { week }] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: userId } }),
     getLeaderboard(userId),
   ]);
@@ -24,7 +24,8 @@ export async function GET() {
       startBalance: user.startBalance,
       createdAt: user.createdAt.toISOString(),
     },
-    rank: you?.rank ?? null,
-    totalPlayers,
+    // Header widgets show this week's standing — the default, most-current tab.
+    rank: week.you?.rank ?? null,
+    totalPlayers: week.totalPlayers,
   });
 }

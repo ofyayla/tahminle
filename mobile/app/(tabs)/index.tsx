@@ -223,6 +223,8 @@ export default function MacGunuScreen() {
             ) ?? 0
           }
           available={available}
+          weekBudget={selection.match.weekBudget}
+          matchBudget={selection.match.matchBudget}
           onClose={() => setSelection(null)}
           onSuccess={async () => {
             setSelection(null);

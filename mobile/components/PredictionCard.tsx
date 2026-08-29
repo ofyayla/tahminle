@@ -5,7 +5,7 @@ import { formatMatchDate, formatOdds, formatTime, formatTL } from "@/lib/format"
 import { getActualResultLabel, getChoiceLabel, getMarketName } from "@/lib/markets";
 import type { PredictionDTO } from "@/lib/predictionTypes";
 import { colors, fonts, radii } from "@/lib/theme";
-import { IconCheck, IconChevronDown, IconClock, IconX } from "./icons";
+import { IconCheck, IconChevronDown, IconClock, IconUndo, IconX } from "./icons";
 
 export default function PredictionCard({ prediction }: { prediction: PredictionDTO }) {
   const [open, setOpen] = useState(false);
@@ -16,13 +16,20 @@ export default function PredictionCard({ prediction }: { prediction: PredictionD
   const resultText = getActualResultLabel(match, prediction.market, match);
   const potential = Math.round(prediction.stake * prediction.oddsAtPick);
   const isSettled = prediction.status !== "open";
-  const walletEffect = prediction.status === "won" ? (prediction.payout ?? 0) : -prediction.stake;
+  const walletEffect =
+    prediction.status === "won"
+      ? (prediction.payout ?? 0)
+      : prediction.status === "cancelled"
+      ? prediction.stake
+      : -prediction.stake;
 
   const statusMeta =
     prediction.status === "open"
       ? { label: "Maç bekleniyor", color: colors.gold, Icon: IconClock }
       : prediction.status === "won"
       ? { label: "Kazandın", color: colors.green, Icon: IconCheck }
+      : prediction.status === "cancelled"
+      ? { label: "Ertelendi · İade edildi", color: colors.inkDim, Icon: IconUndo }
       : { label: "Kaybettin", color: colors.red, Icon: IconX };
 
   return (
@@ -70,16 +77,21 @@ export default function PredictionCard({ prediction }: { prediction: PredictionD
           <Text style={styles.statValue}>{formatOdds(prediction.oddsAtPick)}</Text>
         </View>
         <View style={styles.statCol}>
-          <Text style={styles.statLabel}>{prediction.status === "open" ? "Olası Dönüş" : "Sonuç"}</Text>
+          <Text style={styles.statLabel}>
+            {prediction.status === "open" ? "Olası Dönüş" : prediction.status === "cancelled" ? "İade" : "Sonuç"}
+          </Text>
           <Text
             style={[
               styles.statValue,
               prediction.status === "won" && { color: colors.green },
               prediction.status === "lost" && { color: colors.red },
+              prediction.status === "cancelled" && { color: colors.inkDim },
             ]}
           >
             {prediction.status === "lost"
               ? `-${formatTL(prediction.stake)}`
+              : prediction.status === "cancelled"
+              ? `+${formatTL(prediction.stake)}`
               : formatTL(prediction.status === "won" ? prediction.payout ?? 0 : potential)}
           </Text>
         </View>
@@ -97,11 +109,25 @@ export default function PredictionCard({ prediction }: { prediction: PredictionD
             <View style={styles.detailBox}>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Gerçek sonuç</Text>
-                <Text style={styles.detailValue}>{resultText ?? "Bekleniyor"}</Text>
+                <Text style={styles.detailValue}>
+                  {prediction.status === "cancelled" ? "Belirlenemedi" : resultText ?? "Bekleniyor"}
+                </Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Senin tahminin</Text>
-                <Text style={[styles.detailValue, { color: prediction.status === "won" ? colors.green : colors.red }]}>
+                <Text
+                  style={[
+                    styles.detailValue,
+                    {
+                      color:
+                        prediction.status === "won"
+                          ? colors.green
+                          : prediction.status === "cancelled"
+                          ? colors.inkDim
+                          : colors.red,
+                    },
+                  ]}
+                >
                   {choiceText}
                 </Text>
               </View>

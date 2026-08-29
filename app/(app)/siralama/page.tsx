@@ -1,14 +1,15 @@
 import { getCurrentUser } from "@/lib/auth";
 import { getCommunityFeed, getLeaderboard } from "@/lib/data";
-import { formatTL } from "@/lib/format";
-import LeaderboardList from "@/components/LeaderboardList";
+import { PER_MATCH_CAP, WEEKLY_BUDGET } from "@/lib/season";
+import LeaderboardBoard from "@/components/LeaderboardBoard";
 import CommunityFeed from "@/components/CommunityFeed";
+import InfoAccordion from "@/components/InfoAccordion";
 
 export default async function SiralamaPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const [{ ranked, you, totalPlayers }, feed] = await Promise.all([
+  const [{ week, season }, feed] = await Promise.all([
     getLeaderboard(user.id),
     getCommunityFeed(user.id),
   ]);
@@ -19,28 +20,23 @@ export default async function SiralamaPage() {
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">Taraftar Ligi</p>
         <h1 className="font-display text-3xl">Sıralama</h1>
         <p className="mt-2 text-sm text-ink-dim">
-          Sanal bakiyene göre diğer taraftarlar arasındaki yerin.
+          Net kârına göre sıralanıyorsun. Bakiyen ne kadar büyük olursa olsun herkesin kasası aynı.
         </p>
       </section>
 
-      {you && (
-        <section className="rounded-2xl border border-gold/40 bg-gold/10 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-wide text-gold-dim">Senin Sıran</div>
-              <div className="font-display text-2xl">#{you.rank}</div>
-            </div>
-            <div className="text-right">
-              <div className="font-display text-lg text-gold">{formatTL(you.balance)}</div>
-              <div className="text-xs text-ink-dim">{totalPlayers} taraftar arasında</div>
-            </div>
-          </div>
-        </section>
-      )}
-
       <section>
-        <LeaderboardList rows={ranked} />
+        <LeaderboardBoard week={week} season={season} />
       </section>
+
+      <InfoAccordion title="Sıralama nasıl hesaplanır?" subtitle="Haftalık kasa ve net kâr" defaultOpen={false}>
+        Sıralamanın birimi puan değil, <span className="font-bold text-ink">lira</span> — kazandığın
+        tutar eksi yatırdığın tutar. Bir maç haftasında kendi tahminlerine yatırabileceğin toplam tutar{" "}
+        <span className="font-bold text-ink">₺{WEEKLY_BUDGET}</span> ile, tek bir maça yatırabileceğin
+        tutar ise <span className="font-bold text-ink">₺{PER_MATCH_CAP}</span> ile sınırlı — bu yüzden
+        yüksek bakiye sıralamada avantaj sağlamaz, herkes aynı kasayla oynar. Hediye edilen sürpriz
+        kuponlar seçimi sana ait olmadığı için sıralamaya girmez. Haftalık sıralama her Pazartesi
+        sıfırlanır; sezonluk sıralama son 4 haftanın toplamıdır ve sezon sonunda sıfırlanır.
+      </InfoAccordion>
 
       <section>
         <CommunityFeed items={feed} />

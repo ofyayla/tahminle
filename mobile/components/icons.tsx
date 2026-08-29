@@ -102,6 +102,17 @@ export function IconX({ size, color = "currentColor" }: IconProps) {
   );
 }
 
+// Refund/return glyph — used for a cancelled (postponed match, refunded)
+// prediction, distinct from a plain loss.
+export function IconUndo({ size, color = "currentColor" }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Path d="M9 14L4 9l5-5" {...stroke(color)} />
+      <Path d="M4 9h10.5a5.5 5.5 0 010 11H11" {...stroke(color)} />
+    </Svg>
+  );
+}
+
 export function IconLock({ size, color = "currentColor" }: IconProps) {
   return (
     <Svg {...base(size)}>

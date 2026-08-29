@@ -15,13 +15,20 @@ export default function PredictionCard({ prediction }: { prediction: PredictionD
   const resultText = getActualResultLabel(match, prediction.market, match);
   const potential = Math.round(prediction.stake * prediction.oddsAtPick);
   const isSettled = prediction.status !== "open";
-  const walletEffect = prediction.status === "won" ? (prediction.payout ?? 0) : -prediction.stake;
+  const walletEffect =
+    prediction.status === "won"
+      ? (prediction.payout ?? 0)
+      : prediction.status === "cancelled"
+      ? prediction.stake
+      : -prediction.stake;
 
   const statusMeta =
     prediction.status === "open"
       ? { label: "Maç bekleniyor", cls: "text-gold" }
       : prediction.status === "won"
       ? { label: "Kazandın", cls: "text-green" }
+      : prediction.status === "cancelled"
+      ? { label: "Ertelendi · İade edildi", cls: "text-ink-dim" }
       : { label: "Kaybettin", cls: "text-red" };
 
   return (
@@ -33,6 +40,8 @@ export default function PredictionCard({ prediction }: { prediction: PredictionD
               <><circle cx="12" cy="12" r="9" /><path d="M12 8v4l3 2" /></>
             ) : prediction.status === "won" ? (
               <path d="M20 6L9 17l-5-5" />
+            ) : prediction.status === "cancelled" ? (
+              <><path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 010 11H11" /></>
             ) : (
               <><path d="M18 6L6 18" /><path d="M6 6l12 12" /></>
             )}
@@ -74,10 +83,24 @@ export default function PredictionCard({ prediction }: { prediction: PredictionD
         </div>
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-dim">
-            {prediction.status === "open" ? "Olası Dönüş" : "Sonuç"}
+            {prediction.status === "open" ? "Olası Dönüş" : prediction.status === "cancelled" ? "İade" : "Sonuç"}
           </div>
-          <div className={`font-display text-sm ${prediction.status === "won" ? "text-green" : prediction.status === "lost" ? "text-red" : ""}`}>
-            {prediction.status === "lost" ? `-${formatTL(prediction.stake)}` : formatTL(prediction.status === "won" ? (prediction.payout ?? 0) : potential)}
+          <div
+            className={`font-display text-sm ${
+              prediction.status === "won"
+                ? "text-green"
+                : prediction.status === "lost"
+                ? "text-red"
+                : prediction.status === "cancelled"
+                ? "text-ink-dim"
+                : ""
+            }`}
+          >
+            {prediction.status === "lost"
+              ? `-${formatTL(prediction.stake)}`
+              : prediction.status === "cancelled"
+              ? `+${formatTL(prediction.stake)}`
+              : formatTL(prediction.status === "won" ? (prediction.payout ?? 0) : potential)}
           </div>
         </div>
       </div>
@@ -105,11 +128,21 @@ export default function PredictionCard({ prediction }: { prediction: PredictionD
             <div className="mt-3 space-y-2.5 rounded-xl bg-bg-elevated p-3.5">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-ink-dim">Gerçek sonuç</span>
-                <span className="font-semibold">{resultText ?? "Bekleniyor"}</span>
+                <span className="font-semibold">
+                  {prediction.status === "cancelled" ? "Belirlenemedi" : resultText ?? "Bekleniyor"}
+                </span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-ink-dim">Senin tahminin</span>
-                <span className={`font-semibold ${prediction.status === "won" ? "text-green" : "text-red"}`}>
+                <span
+                  className={`font-semibold ${
+                    prediction.status === "won"
+                      ? "text-green"
+                      : prediction.status === "cancelled"
+                      ? "text-ink-dim"
+                      : "text-red"
+                  }`}
+                >
                   {choiceText}
                 </span>
               </div>

@@ -53,14 +53,25 @@ export type CurrentUser = {
   createdAt: string;
 };
 
-// Mirrors lib/data.ts's LeaderboardRow — ranking is by virtual balance.
+// Mirrors lib/data.ts's LeaderboardRow — ranking is by net kâr, not balance.
 export type LeaderboardRow = {
   rank: number;
   id: string;
   displayName: string;
   favoriteTeam: TeamCode | null;
-  balance: number;
+  net: number;
+  correct: number;
+  total: number;
+  accuracy: number;
   isYou: boolean;
+};
+
+export type LeaderboardScope = {
+  ranked: LeaderboardRow[];
+  you: LeaderboardRow | null;
+  totalPlayers: number;
+  rangeStart: string;
+  rangeEnd: string;
 };
 
 // Mirrors lib/notifications.ts on the backend.
@@ -179,11 +190,12 @@ export const api = {
         openCount: number;
         weekChange: number;
         totalNet: number;
+        weeklyBudget: { cap: number; used: number; remaining: number };
       };
       startBalance: number;
       activity: {
         id: string;
-        kind: "system" | "lock" | "win" | "loss";
+        kind: "system" | "lock" | "win" | "loss" | "cancel";
         title: string;
         subtitle: string;
         amount: number;
@@ -193,9 +205,8 @@ export const api = {
 
   getLeaderboard: () =>
     request<{
-      ranked: LeaderboardRow[];
-      you: LeaderboardRow | null;
-      totalPlayers: number;
+      week: LeaderboardScope;
+      season: LeaderboardScope;
       feed: {
         id: string;
         displayName: string;

@@ -30,4 +30,8 @@ export type MatchDTO = {
   // markets on the same match are independent of each other.
   openByMarket: Record<string, string>;
   pulse: { total: number; home: number; draw: number; away: number };
+  // Haftalık kasa / tek maç tavanı bu maçın kickoff'una göre hesaplanır —
+  // bet slip'in izin verdiği en yüksek stake'i belirler (bkz. lib/season.ts).
+  weekBudget: { cap: number; used: number; remaining: number };
+  matchBudget: { cap: number; used: number; remaining: number };
 };

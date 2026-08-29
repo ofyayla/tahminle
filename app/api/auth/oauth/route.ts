@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/auth";
 import { OAuthError, verifyIdentityToken } from "@/lib/oauth";
+import { STARTING_BALANCE, seasonStartFor, weekStartFor } from "@/lib/season";
 
 const schema = z.object({
   provider: z.enum(["google", "apple"]),
@@ -98,6 +99,7 @@ export async function POST(req: NextRequest) {
 
   const displayName = fullName?.trim() || identity.name?.trim() || nameFromEmail(identity.email);
 
+  const now = new Date();
   const created = await prisma.user.create({
     data: {
       email: identity.email,
@@ -106,8 +108,12 @@ export async function POST(req: NextRequest) {
       passwordHash: null,
       displayName,
       favoriteTeam: null,
-      balance: 1000,
-      startBalance: 1000,
+      balance: STARTING_BALANCE,
+      startBalance: STARTING_BALANCE,
+      // Stamped at creation so applyPeriodicAdjustments doesn't mistake a
+      // brand-new account for one "overdue" for a reset/top-up.
+      weekAnchor: weekStartFor(now),
+      seasonAnchor: seasonStartFor(now),
       oauthAccounts: {
         create: { provider: identity.provider, providerUserId: identity.providerUserId },
       },
