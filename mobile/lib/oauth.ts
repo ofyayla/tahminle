@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
-import Constants from "expo-constants";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as AuthSession from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
@@ -40,6 +40,19 @@ export async function isAppleAvailable(): Promise<boolean> {
 // Thrown when a provider's credentials haven't been filled in yet, so the UI
 // can say exactly that instead of surfacing a raw provider error.
 export class NotConfiguredError extends Error {}
+
+// Running inside the Expo Go client rather than our own build.
+//
+// This matters because both providers key off the app's real bundle
+// identifier, which Expo Go doesn't have — it reports `host.exp.Exponent`.
+// Google therefore receives a redirect_uri that isn't registered for our
+// client and answers with a bare "Erişim engellendi / invalid_request" page,
+// which tells the user nothing. Catching it here means we can explain the
+// actual situation instead of handing them that dead end.
+export const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+const EXPO_GO_MESSAGE =
+  "Expo Go'da sosyal giriş çalışmaz: sağlayıcılar uygulamanın kendi paket kimliğini ister, Expo Go ise kendi kimliğiyle açılır. Development build ile dene — e-posta/şifre girişi burada da çalışıyor.";
 
 // `useIdTokenAuthRequest` throws during render if the current platform's
 // client id is undefined — which would take the whole login screen down
@@ -103,6 +116,7 @@ export function useGoogleAuth() {
   }, [response]);
 
   const promptGoogle = async (): Promise<{ idToken: string } | null> => {
+    if (isExpoGo) throw new NotConfiguredError(EXPO_GO_MESSAGE);
     if (!ready) {
       throw new NotConfiguredError(
         "Google girişi henüz yapılandırılmadı. app.json içindeki extra.googleOAuth alanına client ID'leri ekle."
@@ -141,6 +155,7 @@ export function useGoogleAuth() {
 export type AppleResult = { idToken: string; fullName: string | null };
 
 export async function signInWithApple(): Promise<AppleResult | null> {
+  if (isExpoGo) throw new NotConfiguredError(EXPO_GO_MESSAGE);
   if (!(await isAppleAvailable())) {
     throw new NotConfiguredError(
       Platform.OS === "ios"

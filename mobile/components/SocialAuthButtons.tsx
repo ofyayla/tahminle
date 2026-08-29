@@ -3,7 +3,7 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "
 import Svg, { Path } from "react-native-svg";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { NotConfiguredError, signInWithApple, useGoogleAuth } from "@/lib/oauth";
+import { isExpoGo, NotConfiguredError, signInWithApple, useGoogleAuth } from "@/lib/oauth";
 import { colors, fonts, radii } from "@/lib/theme";
 
 function GoogleMark({ size = 18 }: { size?: number }) {
@@ -104,7 +104,7 @@ export default function SocialAuthButtons({ mode }: { mode: "login" | "register"
 
       {showApple && (
         <Pressable
-          style={[styles.button, styles.appleButton, busy !== null && styles.disabled]}
+          style={[styles.button, styles.appleButton, (busy !== null || isExpoGo) && styles.disabled]}
           disabled={busy !== null}
           onPress={withApple}
         >
@@ -120,7 +120,7 @@ export default function SocialAuthButtons({ mode }: { mode: "login" | "register"
       )}
 
       <Pressable
-        style={[styles.button, styles.googleButton, busy !== null && styles.disabled]}
+        style={[styles.button, styles.googleButton, (busy !== null || isExpoGo) && styles.disabled]}
         disabled={busy !== null}
         onPress={withGoogle}
       >
@@ -133,6 +133,15 @@ export default function SocialAuthButtons({ mode }: { mode: "login" | "register"
           </>
         )}
       </Pressable>
+
+      {/* Stated up front rather than only on tap: in Expo Go neither provider
+          can work, and the password form above is the way in. */}
+      {isExpoGo && !error && (
+        <Text style={styles.notice}>
+          Expo Go&apos;da sosyal giriş kullanılamaz — development build gerekiyor. E-posta ve
+          şifreyle giriş burada da çalışıyor.
+        </Text>
+      )}
 
       {error && <Text style={styles.error}>{error}</Text>}
     </View>
@@ -158,6 +167,14 @@ const styles = StyleSheet.create({
   googleButton: { backgroundColor: "#fff", borderColor: "#fff" },
   googleText: { color: "#1f1f1f", fontSize: 14, fontFamily: fonts.bold },
   disabled: { opacity: 0.6 },
+  notice: {
+    color: colors.inkDim,
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    lineHeight: 17,
+    textAlign: "center",
+    marginTop: 4,
+  },
   error: {
     color: colors.red,
     fontSize: 13,
