@@ -56,7 +56,14 @@ function RootNavigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-      <Stack.Protected guard={!!user}>
+      {/* A signed-in account with no club can't use the app meaningfully —
+          Maç Günü is built around one — and can no longer set it from
+          Hesabım, so it goes through the one-time picker first. In practice
+          this is the Google/Apple path, which never sees the sign-up form. */}
+      <Stack.Protected guard={!!user && user.favoriteTeam == null}>
+        <Stack.Screen name="takim-sec" />
+      </Stack.Protected>
+      <Stack.Protected guard={!!user && user.favoriteTeam != null}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="bildirimler" options={{ animation: "slide_from_right" }} />
       </Stack.Protected>

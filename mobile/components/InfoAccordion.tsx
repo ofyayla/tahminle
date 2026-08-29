@@ -7,12 +7,14 @@ export default function InfoAccordion({
   title,
   subtitle,
   children,
+  defaultOpen = true,
 }: {
   title: string;
   subtitle: string;
   children: ReactNode;
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(defaultOpen);
 
   return (
     <View style={styles.card}>

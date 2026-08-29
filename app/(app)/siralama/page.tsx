@@ -58,7 +58,7 @@ export default async function SiralamaPage() {
         <LeaderboardList rows={ranked} />
       </section>
 
-      <InfoAccordion title="Puanlar nasıl hesaplanır?" subtitle="Haftalık sezon ve isabet puanı">
+      <InfoAccordion title="Puanlar nasıl hesaplanır?" subtitle="Haftalık sezon ve isabet puanı" defaultOpen={false}>
         Doğru bilinen her tahmin,{" "}
         <span className="font-bold text-ink">kilitlenen oranın {POINTS_PER_ODDS_UNIT} katı</span> kadar
         puan kazandırır — 2.40 oranlı bir tahmin {2.4 * POINTS_PER_ODDS_UNIT} puan eder. Yanlış tahmin

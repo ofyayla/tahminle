@@ -25,6 +25,54 @@ with Expo Go on a physical device.
   (`lib/teams.ts` builds URLs from `EXPO_PUBLIC_API_BASE_URL`), so no images
   are duplicated into this project.
 
+## Google / Apple sign-in
+
+Mobile only — the web login stays password-only. The buttons hide themselves
+when a provider isn't configured, so nothing breaks before setup is done.
+
+The identity token is always verified **on the server** (`../lib/oauth.ts`)
+against Google's and Apple's public keys, checking both the signature and that
+the token was issued to *our* app. A token the client merely claims is valid
+is worthless; a forged one is rejected.
+
+### Setup
+
+**Google** — Cloud Console → APIs & Services → Credentials. Create an OAuth
+client ID for each platform you ship (iOS, Android, Web), then:
+
+- put them in `app.json` under `extra.googleOAuth.{ios,android,web}`
+- list the same ids in the backend's `GOOGLE_OAUTH_CLIENT_IDS` (comma separated)
+
+The iOS/Android clients need the bundle id / package name `com.tahminle.app`.
+`redirectUri()` in `lib/oauth.ts` prints the redirect URI to register, if the
+console asks for one.
+
+**Apple** — Apple Developer portal → Certificates, Identifiers & Profiles →
+your App ID → enable "Sign in with Apple". Then set the backend's
+`APPLE_OAUTH_CLIENT_IDS` to `com.tahminle.app`. `app.json` already carries
+`ios.usesAppleSignIn` and the config plugin.
+
+> App Store Review Guideline 4.8: an iOS app offering third-party sign-in
+> (Google) must also offer Sign in with Apple. Both are implemented here.
+
+### Testing
+
+Neither provider works in Expo Go — Apple needs an entitlement Expo Go doesn't
+carry, and Google's native flow needs the real bundle id. Use a development
+build:
+
+```bash
+npx eas build --profile development --platform ios     # or android
+```
+
+### First-run club pick
+
+Accounts created through Google/Apple never see the sign-up form, so they
+arrive with no club. `app/takim-sec.tsx` asks once, gated in `app/_layout.tsx`
+on `user.favoriteTeam == null`. The backend's `PATCH /api/account/team` is
+set-once: it only writes while the column is still null, so a club can be
+chosen but never changed.
+
 ## Push notifications
 
 The backend sends four kinds of push (all from `../lib/push.ts`, triggered by

@@ -3,20 +3,15 @@ import { useFocusEffect } from "expo-router";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { api, ApiError } from "@/lib/api";
 import { formatMatchDate } from "@/lib/format";
-import { TEAM_META, type TeamCode } from "@/lib/teams";
+import { TEAM_META } from "@/lib/teams";
 import { colors, fonts, radii } from "@/lib/theme";
 import { useAuth } from "@/lib/auth-context";
 import { IconLogout } from "@/components/icons";
 
-const TEAMS: TeamCode[] = ["GS", "FB", "BJK"];
-
 export default function HesabimScreen() {
   const { user, rank, totalPlayers, refresh, logout } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [switching, setSwitching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -34,20 +29,6 @@ export default function HesabimScreen() {
   }
 
   const meta = user.favoriteTeam ? TEAM_META[user.favoriteTeam] : null;
-
-  const chooseTeam = async (team: TeamCode) => {
-    const next = user.favoriteTeam === team ? null : team;
-    setSwitching(true);
-    setError(null);
-    try {
-      await api.updateFavoriteTeam(next);
-      await refresh();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Takım güncellenemedi.");
-    } finally {
-      setSwitching(false);
-    }
-  };
 
   return (
     <SafeAreaView style={styles.flex} edges={["top"]}>
@@ -85,29 +66,6 @@ export default function HesabimScreen() {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Tuttuğun Takım</Text>
-        <Text style={styles.sectionSub}>Maç Günü ekranın seçtiğin kulübe göre özelleşir.</Text>
-        <View style={styles.teamRow}>
-          {TEAMS.map((code) => {
-            const m = TEAM_META[code];
-            const active = user.favoriteTeam === code;
-            return (
-              <Pressable
-                key={code}
-                disabled={switching}
-                onPress={() => chooseTeam(code)}
-                style={[styles.teamCard, active && { borderColor: m.color, backgroundColor: `${m.color}1A` }]}
-              >
-                <View style={styles.teamLogo}>
-                  <Image source={{ uri: m.logo }} style={{ width: 44, height: 44 }} />
-                </View>
-                <Text style={styles.teamShort}>{m.short}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        {error && <Text style={styles.error}>{error}</Text>}
-
         <Text style={styles.sectionTitle}>Hesap Bilgileri</Text>
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
@@ -117,6 +75,10 @@ export default function HesabimScreen() {
           <View style={[styles.infoRow, styles.infoDivider]}>
             <Text style={styles.infoLabel}>E-posta</Text>
             <Text style={styles.infoValue}>{user.email}</Text>
+          </View>
+          <View style={[styles.infoRow, styles.infoDivider]}>
+            <Text style={styles.infoLabel}>Tuttuğun takım</Text>
+            <Text style={styles.infoValue}>{meta?.name ?? "Seçilmedi"}</Text>
           </View>
           <View style={[styles.infoRow, styles.infoDivider]}>
             <Text style={styles.infoLabel}>Üyelik başlangıcı</Text>
@@ -154,12 +116,6 @@ const styles = StyleSheet.create({
   rankPill: { marginTop: 12, borderWidth: 1, borderColor: `${colors.gold}66`, backgroundColor: `${colors.gold}1A`, borderRadius: radii.full, paddingHorizontal: 14, paddingVertical: 6 },
   rankPillText: { color: colors.gold, fontFamily: fonts.bold, fontSize: 12 },
   sectionTitle: { color: colors.ink, fontSize: 18, fontFamily: fonts.display, marginBottom: 4 },
-  sectionSub: { color: colors.inkDim, fontSize: 13, fontFamily: fonts.regular, marginBottom: 12 },
-  teamRow: { flexDirection: "row", gap: 10, marginBottom: 4 },
-  teamCard: { flex: 1, alignItems: "center", gap: 8, borderRadius: radii["2xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.bgElevated, padding: 12 },
-  teamLogo: { width: 44, height: 44, borderRadius: 22, overflow: "hidden" },
-  teamShort: { color: colors.ink, fontFamily: fonts.bold, fontSize: 12 },
-  error: { color: colors.red, fontSize: 12, fontFamily: fonts.regular, textAlign: "center", marginTop: 8 },
   infoCard: { borderRadius: radii["2xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, marginTop: 20, marginBottom: 20 },
   infoRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14 },
   infoDivider: { borderTopWidth: 1, borderTopColor: colors.cardBorder },

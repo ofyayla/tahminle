@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 import { colors, fonts, radii } from "@/lib/theme";
 import BrandLogo from "@/components/BrandLogo";
+import SocialAuthButtons from "@/components/SocialAuthButtons";
 import type { TeamCode } from "@/lib/teams";
 
 const TEAMS: { code: TeamCode; color: string }[] = [
@@ -116,6 +117,8 @@ export default function RegisterScreen() {
             {submitting ? <ActivityIndicator color={colors.bg} /> : <Text style={styles.buttonText}>Hesap Oluştur</Text>}
           </Pressable>
         </View>
+
+        <SocialAuthButtons mode="register" />
 
         <Text style={styles.footer}>
           Zaten hesabın var mı?{" "}

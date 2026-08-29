@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 import { colors, fonts, radii } from "@/lib/theme";
 import BrandLogo from "@/components/BrandLogo";
+import SocialAuthButtons from "@/components/SocialAuthButtons";
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -78,6 +79,8 @@ export default function LoginScreen() {
             {submitting ? <ActivityIndicator color={colors.bg} /> : <Text style={styles.buttonText}>Giriş Yap</Text>}
           </Pressable>
         </View>
+
+        <SocialAuthButtons mode="login" />
 
         <Text style={styles.footer}>
           Hesabın yok mu?{" "}

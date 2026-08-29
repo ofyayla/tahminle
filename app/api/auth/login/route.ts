@@ -25,6 +25,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // An account created through Google/Apple has no password hash at all.
+  // Say so plainly rather than returning "wrong password" — the user would
+  // otherwise keep retrying a password that never existed.
+  if (!user.passwordHash) {
+    return NextResponse.json(
+      { error: "Bu hesap Google veya Apple ile açılmış. O seçenekle giriş yap." },
+      { status: 401 }
+    );
+  }
+
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     return NextResponse.json(

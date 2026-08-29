@@ -135,14 +135,28 @@ export const api = {
 
   logout: () => request<{ ok: true }>("/api/auth/logout", { method: "POST" }),
 
-  getAccount: () =>
-    request<{ user: CurrentUser; rank: number | null; totalPlayers: number }>("/api/account"),
+  oauthLogin: (provider: "google" | "apple", idToken: string, fullName?: string | null) =>
+    request<{
+      ok: true;
+      token: string;
+      isNewUser: boolean;
+      needsTeam: boolean;
+      user: { id: string; email: string; displayName: string };
+    }>("/api/auth/oauth", {
+      method: "POST",
+      body: JSON.stringify({ provider, idToken, fullName }),
+    }),
 
-  updateFavoriteTeam: (favoriteTeam: TeamCode | null) =>
+  // Set-once: the backend rejects this with 409 if a club is already chosen.
+  chooseTeam: (favoriteTeam: TeamCode) =>
     request<{ ok: true }>("/api/account/team", {
       method: "PATCH",
       body: JSON.stringify({ favoriteTeam }),
     }),
+
+  getAccount: () =>
+    request<{ user: CurrentUser; rank: number | null; totalPlayers: number }>("/api/account"),
+
 
   getMatches: () => request<{ matches: MatchDTO[]; available: number }>("/api/matches"),
 

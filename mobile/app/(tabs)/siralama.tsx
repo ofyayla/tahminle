@@ -165,7 +165,7 @@ export default function SiralamaScreen() {
         ListFooterComponent={
           <View style={{ marginTop: 8 }}>
             <View style={{ marginBottom: 20 }}>
-              <InfoAccordion title="Puanlar nasıl hesaplanır?" subtitle="Haftalık sezon ve isabet puanı">
+              <InfoAccordion title="Puanlar nasıl hesaplanır?" subtitle="Haftalık sezon ve isabet puanı" defaultOpen={false}>
                 Doğru bilinen her tahmin, kilitlenen oranın 10 katı kadar puan kazandırır — 2.40
                 oranlı bir tahmin 24 puan eder. Yanlış tahmin puan kaybettirmez, sadece isabet
                 yüzdeni düşürür. Ne kadar sanal bakiye yatırdığın puanı etkilemez, bu yüzden yüksek

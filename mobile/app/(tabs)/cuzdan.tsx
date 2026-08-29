@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InfoAccordion from "@/components/InfoAccordion";
+import GoldGlow from "@/components/GoldGlow";
 import TransferPanel from "@/components/TransferPanel";
 import GiftPanel from "@/components/GiftPanel";
 import { IconCheck, IconCirclePlus, IconInfo, IconLock, IconShield, IconTrendUpArrow, IconWallet, IconX } from "@/components/icons";
@@ -78,7 +79,7 @@ export default function CuzdanScreen() {
         <Text style={styles.title}>Sanal Bakiye</Text>
 
         <View style={styles.heroCard}>
-          <View style={styles.heroGlow} />
+          <GoldGlow size={200} />
           <View style={styles.heroTopRow}>
             <View>
               <Text style={styles.heroLabel}>Toplam Sanal Bakiyen</Text>
@@ -248,7 +249,6 @@ const styles = StyleSheet.create({
   eyebrow: { color: colors.gold, fontSize: 11, fontFamily: fonts.bold, textTransform: "uppercase", letterSpacing: 2 },
   title: { color: colors.ink, fontSize: 28, fontFamily: fonts.display, marginTop: 6, marginBottom: 16 },
   heroCard: { borderRadius: radii["3xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 20, marginBottom: 20, overflow: "hidden" },
-  heroGlow: { position: "absolute", right: -40, top: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: colors.gold, opacity: 0.12 },
   heroTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   heroLabel: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.bold, textTransform: "uppercase" },
   heroValue: { color: colors.gold, fontSize: 32, fontFamily: fonts.display, marginTop: 4 },

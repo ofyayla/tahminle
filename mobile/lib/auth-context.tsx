@@ -15,6 +15,11 @@ type AuthContextValue = {
     displayName: string,
     favoriteTeam: TeamCode | null
   ) => Promise<void>;
+  loginWithOAuth: (
+    provider: "google" | "apple",
+    idToken: string,
+    fullName?: string | null
+  ) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -82,6 +87,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refresh]
   );
 
+  const loginWithOAuth = useCallback(
+    async (provider: "google" | "apple", idToken: string, fullName?: string | null) => {
+      const res = await api.oauthLogin(provider, idToken, fullName);
+      await setToken(res.token);
+      await refresh();
+    },
+    [refresh]
+  );
+
   const logout = useCallback(async () => {
     // Drop the push token before the session goes away — the backend needs a
     // valid session to know whose token it is.
@@ -92,7 +106,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, rank, totalPlayers, loading, login, register, logout, refresh }}>
+    <AuthContext.Provider
+      value={{ user, rank, totalPlayers, loading, login, register, loginWithOAuth, logout, refresh }}
+    >
       {children}
     </AuthContext.Provider>
   );

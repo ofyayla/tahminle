@@ -6,12 +6,14 @@ export default function InfoAccordion({
   title,
   subtitle,
   children,
+  defaultOpen = true,
 }: {
   title: string;
   subtitle: string;
   children: React.ReactNode;
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(defaultOpen);
 
   return (
     <div className="rounded-2xl border border-card-border bg-card p-4">

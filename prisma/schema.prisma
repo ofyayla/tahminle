@@ -14,7 +14,10 @@ datasource db {
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
-  passwordHash String
+  // Null for accounts created through Google/Apple sign-in — they have no
+  // password to check, so the password login path must reject them rather
+  // than comparing against an empty hash.
+  passwordHash String?
   displayName  String
   favoriteTeam String? // GS | FB | BJK | null
   balance      Int      @default(1000)
@@ -28,6 +31,27 @@ model User {
   sentGifts         Gift[]     @relation("SentGifts")
   receivedGifts     Gift[]     @relation("ReceivedGifts")
   pushTokens        PushToken[]
+  oauthAccounts     OAuthAccount[]
+}
+
+// A third-party identity linked to a user (Google, Apple). Kept as its own
+// table rather than columns on User so one account can carry several
+// providers — signing in with Apple on the phone and Google on a tablet must
+// land on the same user, not create a second one.
+//
+// `providerUserId` is the provider's stable subject claim ("sub"), never the
+// email: an email can change hands, the subject can't.
+model OAuthAccount {
+  id             String   @id @default(cuid())
+  userId         String
+  provider       String // google | apple
+  providerUserId String
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
 }
 
 // An Expo push token for one installation of the mobile app. A user can have

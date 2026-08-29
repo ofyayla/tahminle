@@ -3,7 +3,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { getLeaderboard } from "@/lib/data";
 import { formatMatchDate } from "@/lib/format";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
-import TeamSwitcher from "@/components/TeamSwitcher";
 import LogoutButton from "@/components/LogoutButton";
 
 export default async function HesabimPage() {
@@ -56,12 +55,6 @@ export default async function HesabimPage() {
       </section>
 
       <section>
-        <h2 className="mb-1 font-display text-xl">Tuttuğun Takım</h2>
-        <p className="mb-3 text-sm text-ink-dim">Maç Günü ekranın seçtiğin kulübe göre özelleşir.</p>
-        <TeamSwitcher current={user.favoriteTeam as TeamCode | null} />
-      </section>
-
-      <section>
         <h2 className="mb-3 font-display text-xl">Hesap Bilgileri</h2>
         <div className="divide-y divide-card-border rounded-2xl border border-card-border bg-card">
           <div className="flex items-center justify-between px-4 py-3.5">
@@ -71,6 +64,10 @@ export default async function HesabimPage() {
           <div className="flex items-center justify-between px-4 py-3.5">
             <span className="text-sm text-ink-dim">E-posta</span>
             <span className="text-sm font-bold">{user.email}</span>
+          </div>
+          <div className="flex items-center justify-between px-4 py-3.5">
+            <span className="text-sm text-ink-dim">Tuttuğun takım</span>
+            <span className="text-sm font-bold">{meta?.name ?? "Seçilmedi"}</span>
           </div>
           <div className="flex items-center justify-between px-4 py-3.5">
             <span className="text-sm text-ink-dim">Üyelik başlangıcı</span>
