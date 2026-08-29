@@ -61,3 +61,29 @@ export function formatDateRange(start: Date, end: Date): string {
   const e = istanbulParts(last);
   return `${s.day} ${MONTHS[s.month - 1].slice(0, 3)} – ${e.day} ${MONTHS[e.month - 1].slice(0, 3)}`;
 }
+
+export type BudgetSegment = { label: string; stake: number; color: string };
+
+const BUDGET_TONES = ["#f6c945", "#d9b13e", "#a98a2e", "#7a6423"];
+const BUDGET_OTHER_TONE = "#616a80";
+
+// Turns a per-match kasa breakdown into colored bar segments, capped at 4
+// distinct matches with any remainder bucketed into one "Diğer" slice so the
+// legend never sprawls past a glance. Segment widths are relative to `used`
+// once it exceeds `cap` (there's no headroom left to show), and to `cap`
+// otherwise, so the bar always reads the same way it's captioned.
+export function budgetSegments(
+  byMatch: { label: string; stake: number }[],
+  cap: number,
+  used: number
+): { segments: BudgetSegment[]; denom: number } {
+  const MAX = 4;
+  const top = byMatch.slice(0, MAX).map((m, i) => ({ label: m.label, stake: m.stake, color: BUDGET_TONES[i] }));
+  const restCount = byMatch.length - MAX;
+  const restStake = byMatch.slice(MAX).reduce((sum, m) => sum + m.stake, 0);
+  const segments =
+    restCount > 0
+      ? [...top, { label: `Diğer ${restCount} maç`, stake: restStake, color: BUDGET_OTHER_TONE }]
+      : top;
+  return { segments, denom: used > cap ? used : cap };
+}

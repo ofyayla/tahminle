@@ -9,7 +9,7 @@ import { IconCheck, IconCirclePlus, IconInfo, IconLock, IconShield, IconTrendUpA
 import ErrorBanner from "@/components/ErrorBanner";
 import { api } from "@/lib/api";
 import { useScreenLoad } from "@/lib/useScreenLoad";
-import { formatMatchDate, formatTime, formatTL } from "@/lib/format";
+import { budgetSegments, formatMatchDate, formatTime, formatTL } from "@/lib/format";
 import { colors, fonts, radii } from "@/lib/theme";
 
 type WalletData = Awaited<ReturnType<typeof api.getWallet>>;
@@ -69,6 +69,12 @@ export default function CuzdanScreen() {
   const inPlayTotal = wallet.available + wallet.lockedInOpen;
   const availablePct = inPlayTotal > 0 ? Math.round((wallet.available / inPlayTotal) * 100) : 0;
   const lockedPct = inPlayTotal > 0 ? Math.round((wallet.lockedInOpen / inPlayTotal) * 100) : 0;
+  const budgetOverCap = wallet.weeklyBudget.used > wallet.weeklyBudget.cap;
+  const { segments: budgetSegs, denom: budgetDenom } = budgetSegments(
+    wallet.weeklyBudget.byMatch,
+    wallet.weeklyBudget.cap,
+    wallet.weeklyBudget.used
+  );
 
   return (
     <SafeAreaView style={styles.flex} edges={["top"]}>
@@ -118,24 +124,52 @@ export default function CuzdanScreen() {
               </Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={styles.budgetRemaining}>{formatTL(wallet.weeklyBudget.remaining)}</Text>
-              <Text style={styles.gridFooterText}>kaldı</Text>
+              {budgetOverCap ? (
+                <Text style={styles.budgetFull}>Kasan doldu</Text>
+              ) : (
+                <>
+                  <Text style={styles.budgetRemaining}>{formatTL(wallet.weeklyBudget.remaining)}</Text>
+                  <Text style={styles.gridFooterText}>kaldı</Text>
+                </>
+              )}
             </View>
           </View>
-          <View style={styles.progressTrack}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${Math.min(100, Math.round((wallet.weeklyBudget.used / wallet.weeklyBudget.cap) * 100))}%`,
-                  backgroundColor: colors.gold,
-                },
-              ]}
-            />
+
+          <View style={styles.segmentTrack}>
+            {budgetSegs.map((s, i) => (
+              <View
+                key={s.label}
+                style={{
+                  width: `${(s.stake / budgetDenom) * 100}%`,
+                  backgroundColor: s.color,
+                  borderRightWidth: i < budgetSegs.length - 1 ? 1 : 0,
+                  borderRightColor: colors.card,
+                }}
+              />
+            ))}
           </View>
+
+          {budgetSegs.length > 0 && (
+            <View style={styles.segmentLegend}>
+              {budgetSegs.map((s) => (
+                <View key={s.label} style={styles.segmentLegendItem}>
+                  <View style={[styles.segmentDot, { backgroundColor: s.color }]} />
+                  <Text style={styles.segmentLegendText}>
+                    {s.label} {formatTL(s.stake)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+
           <Text style={styles.budgetNote}>
             Kendi tahminlerine bu hafta yatırabileceğin toplam tutar — bakiyen ne kadar büyük olursa olsun aynı. Her Pazartesi yenilenir.
           </Text>
+          {budgetOverCap && (
+            <Text style={styles.budgetNoteMuted}>
+              Kasa kuralından önce yaptığın tahminler de bu toplama dahil. Gelecek Pazartesi&apos;den itibaren gerçek anlamda işleyecek.
+            </Text>
+          )}
         </View>
 
         <View style={styles.flowHeaderRow}>
@@ -283,7 +317,14 @@ const styles = StyleSheet.create({
   budgetHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 },
   budgetValue: { color: colors.ink, fontSize: 17, fontFamily: fonts.display, marginTop: 2 },
   budgetRemaining: { color: colors.gold, fontSize: 14, fontFamily: fonts.display },
+  budgetFull: { color: colors.inkDim, fontSize: 13, fontFamily: fonts.display },
+  segmentTrack: { flexDirection: "row", height: 10, borderRadius: 5, backgroundColor: colors.bgElevated, overflow: "hidden" },
+  segmentLegend: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 12 },
+  segmentLegendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+  segmentDot: { width: 8, height: 8, borderRadius: 3 },
+  segmentLegendText: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular },
   budgetNote: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular, marginTop: 10 },
+  budgetNoteMuted: { color: colors.inkFaint, fontSize: 11, fontFamily: fonts.regular, marginTop: 6 },
   heroTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   heroLabel: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.bold, textTransform: "uppercase" },
   heroValue: { color: colors.gold, fontSize: 32, fontFamily: fonts.display, marginTop: 4 },

@@ -47,30 +47,44 @@ function toBudget(cap: number, used: number): Budget {
   return { cap, used, remaining: Math.max(0, cap - used) };
 }
 
-// Sums the stake a user has personally committed (self-placed, non-gift,
-// not refunded) across predictions matching `matchFilter`. Shared by the
-// wallet's weekly-kasa display, the per-match bet-slip caps, and the POST
-// /api/predictions cap check — gifts are excluded because the recipient
-// never chose to stake that money, and a cancelled/refunded prediction no
-// longer represents money actually spent.
-async function selfStakeSum(userId: string, matchFilter: { kickoff?: { gte: Date; lt: Date } } = {}) {
+export type WeeklyBudgetMatch = { matchId: string; label: string; stake: number };
+export type WeeklyBudgetBreakdown = Budget & { byMatch: WeeklyBudgetMatch[] };
+
+// The current week's kasa usage, broken down by match — shown on the wallet
+// screen. `used` can exceed `cap` for a user who already had open/settled
+// predictions this week before the kasa limit shipped: it isn't enforced
+// retroactively, only on new predictions going forward (see
+// app/api/predictions/route.ts), so a week that was already in progress at
+// rollout can show more than ₺1.000 until it resets next Monday.
+export async function getWeeklyBudgetBreakdown(
+  userId: string,
+  now: Date = new Date()
+): Promise<WeeklyBudgetBreakdown> {
   const rows = await prisma.prediction.findMany({
     where: {
       userId,
       gift: { is: null },
       status: { in: ["open", "won", "lost"] },
-      ...(matchFilter.kickoff ? { match: { kickoff: matchFilter.kickoff } } : {}),
+      match: { kickoff: { gte: weekStartFor(now), lt: weekEndFor(now) } },
     },
-    select: { stake: true },
+    select: { stake: true, matchId: true, match: { select: { homeTeam: true, awayTeam: true } } },
   });
-  return rows.reduce((sum, r) => sum + r.stake, 0);
-}
 
-// The current week's kasa usage — shown on the wallet/home screens as a
-// single, always-"this week" number.
-export async function getWeeklyBudget(userId: string, now: Date = new Date()): Promise<Budget> {
-  const used = await selfStakeSum(userId, { kickoff: { gte: weekStartFor(now), lt: weekEndFor(now) } });
-  return toBudget(WEEKLY_BUDGET, used);
+  const byMatchMap = new Map<string, WeeklyBudgetMatch>();
+  let used = 0;
+  for (const r of rows) {
+    used += r.stake;
+    const entry = byMatchMap.get(r.matchId) ?? {
+      matchId: r.matchId,
+      label: `${r.match.homeTeam} – ${r.match.awayTeam}`,
+      stake: 0,
+    };
+    entry.stake += r.stake;
+    byMatchMap.set(r.matchId, entry);
+  }
+
+  const byMatch = [...byMatchMap.values()].sort((a, b) => b.stake - a.stake);
+  return { ...toBudget(WEEKLY_BUDGET, used), byMatch };
 }
 
 // Per-match and per-match's-week budgets for a batch of matches, keyed by
@@ -127,7 +141,7 @@ export async function getWalletSummary(userId: string) {
       where: { userId, status: { in: ["won", "lost"] }, settledAt: { gte: weekAgo } },
       include: { gift: { select: { id: true } } },
     }),
-    getWeeklyBudget(userId),
+    getWeeklyBudgetBreakdown(userId),
   ]);
 
   const lockedInOpen = openPredictions.reduce((sum, p) => sum + p.stake, 0);

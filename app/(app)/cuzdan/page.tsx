@@ -3,7 +3,7 @@ import { getRecentActivity, getWalletSummary, syncMatchState } from "@/lib/data"
 import { getTransferHistory, getTransferTargets } from "@/lib/transfers";
 import { getGiftsFor } from "@/lib/gifts";
 import { getChoiceLabel, getMarketName, type MarketCode } from "@/lib/markets";
-import { formatTL } from "@/lib/format";
+import { budgetSegments, formatTL } from "@/lib/format";
 import ActivityFeed from "@/components/ActivityFeed";
 import InfoAccordion from "@/components/InfoAccordion";
 import TransferPanel from "@/components/TransferPanel";
@@ -67,6 +67,13 @@ export default async function CuzdanPage() {
   const availablePct = inPlayTotal > 0 ? Math.round((wallet.available / inPlayTotal) * 100) : 0;
   const lockedPct = inPlayTotal > 0 ? Math.round((wallet.lockedInOpen / inPlayTotal) * 100) : 0;
 
+  const budgetOverCap = wallet.weeklyBudget.used > wallet.weeklyBudget.cap;
+  const { segments: budgetSegs, denom: budgetDenom } = budgetSegments(
+    wallet.weeklyBudget.byMatch,
+    wallet.weeklyBudget.cap,
+    wallet.weeklyBudget.used
+  );
+
   return (
     <div className="flex flex-col gap-5 px-4 pt-5">
       <section>
@@ -110,7 +117,7 @@ export default async function CuzdanPage() {
       </section>
 
       <section className="rounded-2xl border border-card-border bg-card p-4">
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between">
           <div>
             <div className="text-[11px] font-bold uppercase tracking-wide text-ink-dim">Bu Haftaki Kasan</div>
             <div className="font-display text-lg mt-0.5">
@@ -118,19 +125,49 @@ export default async function CuzdanPage() {
             </div>
           </div>
           <div className="text-right text-xs text-ink-dim">
-            <div className="font-display text-sm text-gold">{formatTL(wallet.weeklyBudget.remaining)}</div>
-            kaldı
+            {budgetOverCap ? (
+              <div className="font-display text-sm text-ink-dim">Kasan doldu</div>
+            ) : (
+              <>
+                <div className="font-display text-sm text-gold">{formatTL(wallet.weeklyBudget.remaining)}</div>
+                kaldı
+              </>
+            )}
           </div>
         </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-bg-elevated">
-          <div
-            className="h-full rounded-full bg-gold"
-            style={{ width: `${Math.min(100, Math.round((wallet.weeklyBudget.used / wallet.weeklyBudget.cap) * 100))}%` }}
-          />
+
+        <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-bg-elevated">
+          {budgetSegs.map((s, i) => (
+            <div
+              key={s.label}
+              style={{
+                width: `${(s.stake / budgetDenom) * 100}%`,
+                backgroundColor: s.color,
+                borderRight: i < budgetSegs.length - 1 ? "1px solid var(--card)" : undefined,
+              }}
+            />
+          ))}
         </div>
-        <p className="mt-2 text-[11px] text-ink-dim">
+
+        {budgetSegs.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-ink-dim">
+            {budgetSegs.map((s) => (
+              <span key={s.label} className="inline-flex items-center gap-1.5">
+                <span className="h-2 w-2 flex-shrink-0 rounded-[3px]" style={{ backgroundColor: s.color }} />
+                {s.label} {formatTL(s.stake)}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <p className="mt-3 text-[11px] text-ink-dim">
           Kendi tahminlerine bu hafta yatırabileceğin toplam tutar — bakiyen ne kadar büyük olursa olsun aynı. Her Pazartesi yenilenir.
         </p>
+        {budgetOverCap && (
+          <p className="mt-1.5 text-[11px] text-ink-faint">
+            Kasa kuralından önce yaptığın tahminler de bu toplama dahil. Gelecek Pazartesi&apos;den itibaren gerçek anlamda işleyecek.
+          </p>
+        )}
       </section>
 
       <section>

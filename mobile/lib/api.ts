@@ -190,7 +190,12 @@ export const api = {
         openCount: number;
         weekChange: number;
         totalNet: number;
-        weeklyBudget: { cap: number; used: number; remaining: number };
+        weeklyBudget: {
+          cap: number;
+          used: number;
+          remaining: number;
+          byMatch: { matchId: string; label: string; stake: number }[];
+        };
       };
       startBalance: number;
       activity: {
