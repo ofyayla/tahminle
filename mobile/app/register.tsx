@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,14 +17,9 @@ import { ApiError } from "@/lib/api";
 import { colors, fonts, radii } from "@/lib/theme";
 import BrandLogo from "@/components/BrandLogo";
 import SocialAuthButtons from "@/components/SocialAuthButtons";
-import type { TeamCode } from "@/lib/teams";
+import { TEAM_META, type TeamCode } from "@/lib/teams";
 
-const TEAMS: { code: TeamCode; color: string }[] = [
-  { code: "GS", color: "#F5A623" },
-  { code: "FB", color: "#F6C945" },
-  { code: "BJK", color: "#E7E9EE" },
-  { code: "TS", color: "#7C1D2E" },
-];
+const TEAM_CODES: TeamCode[] = ["GS", "FB", "BJK", "TS"];
 
 export default function RegisterScreen() {
   const { register } = useAuth();
@@ -93,15 +89,19 @@ export default function RegisterScreen() {
           <View>
             <Text style={styles.label}>Tuttuğun takım</Text>
             <View style={styles.teamRow}>
-              {TEAMS.map((t) => {
-                const active = favoriteTeam === t.code;
+              {TEAM_CODES.map((code) => {
+                const meta = TEAM_META[code];
+                const active = favoriteTeam === code;
                 return (
                   <Pressable
-                    key={t.code}
-                    onPress={() => setFavoriteTeam(active ? null : t.code)}
+                    key={code}
+                    onPress={() => setFavoriteTeam(active ? null : code)}
                     style={[styles.teamChip, active && styles.teamChipActive]}
                   >
-                    <Text style={[styles.teamChipText, active && { color: colors.gold }]}>{t.code}</Text>
+                    <View style={styles.teamLogoWrap}>
+                      <Image source={{ uri: meta.logo }} style={{ width: 32, height: 32 }} />
+                    </View>
+                    <Text style={[styles.teamChipText, active && { color: colors.gold }]}>{meta.short}</Text>
                   </Pressable>
                 );
               })}
@@ -162,6 +162,7 @@ const styles = StyleSheet.create({
   teamChip: {
     flex: 1,
     alignItems: "center",
+    gap: 6,
     paddingVertical: 10,
     borderRadius: radii.xl,
     borderWidth: 1,
@@ -169,7 +170,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgElevated,
   },
   teamChipActive: { borderColor: colors.gold, backgroundColor: `${colors.gold}1A` },
-  teamChipText: { color: colors.inkDim, fontFamily: fonts.bold, fontSize: 12 },
+  teamLogoWrap: { width: 36, height: 36, borderRadius: 18, overflow: "hidden", backgroundColor: colors.bg, alignItems: "center", justifyContent: "center" },
+  teamChipText: { color: colors.inkDim, fontFamily: fonts.bold, fontSize: 10 },
   button: { backgroundColor: colors.gold, borderRadius: radii.xl, paddingVertical: 13, alignItems: "center" },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: colors.bg, fontFamily: fonts.bold, fontSize: 14 },

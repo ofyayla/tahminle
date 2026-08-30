@@ -2,15 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import BrandLogo from "@/components/BrandLogo";
+import { TEAM_META, type TeamCode } from "@/lib/teams";
 
-const TEAMS = [
-  { code: "GS", name: "Galatasaray", color: "#F5A623" },
-  { code: "FB", name: "Fenerbahçe", color: "#F6C945" },
-  { code: "BJK", name: "Beşiktaş", color: "#E7E9EE" },
-  { code: "TS", name: "Trabzonspor", color: "#7C1D2E" },
-] as const;
+const TEAM_CODES: TeamCode[] = ["GS", "FB", "BJK", "TS"];
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -89,21 +86,28 @@ export default function RegisterPage() {
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-ink-dim">Tuttuğun takım</label>
-            <div className="grid grid-cols-3 gap-2">
-              {TEAMS.map((t) => (
-                <button
-                  type="button"
-                  key={t.code}
-                  onClick={() => setFavoriteTeam(favoriteTeam === t.code ? null : t.code)}
-                  className={`rounded-xl border px-2 py-2.5 text-xs font-bold transition-colors ${
-                    favoriteTeam === t.code
-                      ? "border-gold bg-gold/10 text-gold"
-                      : "border-card-border bg-bg-elevated text-ink-dim"
-                  }`}
-                >
-                  {t.code}
-                </button>
-              ))}
+            <div className="grid grid-cols-4 gap-2">
+              {TEAM_CODES.map((code) => {
+                const meta = TEAM_META[code];
+                const active = favoriteTeam === code;
+                return (
+                  <button
+                    type="button"
+                    key={code}
+                    onClick={() => setFavoriteTeam(active ? null : code)}
+                    aria-label={meta.name}
+                    aria-pressed={active}
+                    className={`flex flex-col items-center gap-1.5 rounded-xl border py-2.5 transition-colors ${
+                      active ? "border-gold bg-gold/10" : "border-card-border bg-bg-elevated"
+                    }`}
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-bg">
+                      <Image src={meta.logo} alt={meta.name} width={36} height={36} className="h-full w-full object-cover" />
+                    </span>
+                    <span className={`text-[10px] font-bold ${active ? "text-gold" : "text-ink-dim"}`}>{meta.short}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
