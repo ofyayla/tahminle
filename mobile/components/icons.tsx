@@ -225,3 +225,12 @@ export function IconSparkle({ size, color = "currentColor" }: IconProps) {
     </Svg>
   );
 }
+
+export function IconPencil({ size, color = "currentColor" }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Path d="M12 20h9" {...stroke(color)} />
+      <Path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z" {...stroke(color)} />
+    </Svg>
+  );
+}

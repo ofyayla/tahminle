@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { useRouter } from "expo-router";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InfoAccordion from "@/components/InfoAccordion";
@@ -6,7 +7,7 @@ import GoldGlow from "@/components/GoldGlow";
 import TransferPanel from "@/components/TransferPanel";
 import GiftPanel from "@/components/GiftPanel";
 import PerksPanel from "@/components/PerksPanel";
-import { IconCheck, IconCirclePlus, IconInfo, IconLock, IconShield, IconTrendUpArrow, IconUndo, IconWallet, IconX } from "@/components/icons";
+import { IconInfo, IconLock, IconShield, IconTrendUpArrow, IconUndo, IconWallet, IconX } from "@/components/icons";
 import ErrorBanner from "@/components/ErrorBanner";
 import { api } from "@/lib/api";
 import type { UserPerkStatus } from "@/lib/api";
@@ -27,6 +28,7 @@ const ACTIVITY_ICON: Record<string, { Icon: (p: { size: number; color: string })
 };
 
 export default function CuzdanScreen() {
+  const router = useRouter();
   const [data, setData] = useState<WalletData | null>(null);
   const [transfers, setTransfers] = useState<TransferData | null>(null);
   const [gifts, setGifts] = useState<GiftData | null>(null);
@@ -67,13 +69,6 @@ export default function CuzdanScreen() {
   }
 
   const { wallet, activity } = data;
-  const weekChangePct = data.startBalance > 0 ? (wallet.weekChange / data.startBalance) * 100 : 0;
-  // `wallet.total` is now just the available balance — money locked in an open
-  // prediction is already spent. The two bars still want to show the split of
-  // "what's in play", so they need their own denominator.
-  const inPlayTotal = wallet.available + wallet.lockedInOpen;
-  const availablePct = inPlayTotal > 0 ? Math.round((wallet.available / inPlayTotal) * 100) : 0;
-  const lockedPct = inPlayTotal > 0 ? Math.round((wallet.lockedInOpen / inPlayTotal) * 100) : 0;
   const budgetOverCap = wallet.weeklyBudget.used > wallet.weeklyBudget.cap;
   const { segments: budgetSegs, denom: budgetDenom } = budgetSegments(
     wallet.weeklyBudget.byMatch,
@@ -177,63 +172,6 @@ export default function CuzdanScreen() {
           )}
         </View>
 
-        <View style={styles.flowHeaderRow}>
-          <Text style={styles.sectionTitle}>Bakiye akışı</Text>
-          <View style={styles.liveRow}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>Canlı</Text>
-          </View>
-        </View>
-        <Text style={styles.sectionSub}>Tahminlerin ve sonuçların net görünümü.</Text>
-
-        <View style={styles.grid}>
-          <View style={styles.gridCard}>
-            <View style={styles.gridHeaderRow}>
-              <Text style={styles.gridLabel}>Kullanılabilir</Text>
-              <IconCheck size={14} color={colors.green} />
-            </View>
-            <Text style={styles.gridValue}>{formatTL(wallet.available)}</Text>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${availablePct}%`, backgroundColor: colors.green }]} />
-            </View>
-          </View>
-
-          <View style={styles.gridCard}>
-            <View style={styles.gridHeaderRow}>
-              <Text style={styles.gridLabel}>Açık Tahminlerde</Text>
-              <IconLock size={14} color={colors.gold} />
-            </View>
-            <Text style={styles.gridValue}>{formatTL(wallet.lockedInOpen)}</Text>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${lockedPct}%`, backgroundColor: colors.gold }]} />
-            </View>
-          </View>
-
-          <View style={styles.gridCard}>
-            <View style={styles.gridHeaderRow}>
-              <Text style={styles.gridLabel}>Bu Hafta</Text>
-              <IconTrendUpArrow size={14} color={colors.green} />
-            </View>
-            <Text style={[styles.gridValue, { color: wallet.weekChange >= 0 ? colors.green : colors.red }]}>
-              {wallet.weekChange >= 0 ? "+" : ""}
-              {formatTL(wallet.weekChange)}
-            </Text>
-            <Text style={styles.gridFooterText}>Son 7 gün · {weekChangePct >= 0 ? "+" : ""}{weekChangePct.toFixed(1)}%</Text>
-          </View>
-
-          <View style={styles.gridCard}>
-            <View style={styles.gridHeaderRow}>
-              <Text style={styles.gridLabel}>Toplam Net</Text>
-              <IconCirclePlus size={14} color={colors.gold} />
-            </View>
-            <Text style={[styles.gridValue, { color: wallet.totalNet >= 0 ? colors.gold : colors.red }]}>
-              {wallet.totalNet >= 0 ? "+" : ""}
-              {formatTL(wallet.totalNet)}
-            </Text>
-            <Text style={styles.gridFooterText}>Başlangıçtan beri</Text>
-          </View>
-        </View>
-
         {perks && <PerksPanel perks={perks} onChanged={reload} />}
 
         {transfers && (
@@ -259,7 +197,12 @@ export default function CuzdanScreen() {
           </View>
         )}
 
-        <Text style={styles.sectionTitle}>Son Hareketler</Text>
+        <View style={styles.flowHeaderRow}>
+          <Text style={styles.sectionTitle}>Son Hareketler</Text>
+          <Pressable onPress={() => router.push("/hareketler")} hitSlop={8}>
+            <Text style={styles.viewAllText}>Tümünü gör</Text>
+          </Pressable>
+        </View>
         <Text style={[styles.sectionSub, { marginBottom: 12 }]}>Her işlem bir maç veya sistem olayına bağlıdır.</Text>
         {activity.length === 0 ? (
           <Text style={styles.empty}>Henüz bir hareket yok.</Text>
@@ -290,7 +233,7 @@ export default function CuzdanScreen() {
         )}
 
         <View style={{ marginTop: 20 }}>
-          <InfoAccordion title="Nasıl hesaplanır?" subtitle="Sanal getirinin kısa açıklaması">
+          <InfoAccordion title="Nasıl hesaplanır?" subtitle="Sanal getirinin kısa açıklaması" defaultOpen={false}>
             Tahmin onaylandığında kilitlenen oran kullanılır. Sanal getiri = sanal tahmin tutarı × kilitlenen oran.
             Maç sonucu işlendiğinde tutar bakiyene eklenir veya rezerve edilen sanal bakiye güncellenir.
           </InfoAccordion>
@@ -344,17 +287,9 @@ const styles = StyleSheet.create({
   flowHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
   sectionTitle: { color: colors.ink, fontSize: 20, fontFamily: fonts.display, marginBottom: 4 },
   sectionSub: { color: colors.inkDim, fontSize: 13, fontFamily: fonts.regular },
-  liveRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.green },
-  liveText: { color: colors.green, fontSize: 12, fontFamily: fonts.bold },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 12, marginBottom: 20 },
-  gridCard: { width: "47%", borderRadius: radii["2xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 14 },
-  gridHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+  viewAllText: { color: colors.gold, fontSize: 12, fontFamily: fonts.bold },
   gridLabel: { color: colors.inkDim, fontSize: 10, fontFamily: fonts.bold, textTransform: "uppercase" },
-  gridValue: { color: colors.ink, fontSize: 18, fontFamily: fonts.display },
   gridFooterText: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular, marginTop: 8 },
-  progressTrack: { height: 6, borderRadius: 3, backgroundColor: colors.bgElevated, overflow: "hidden", marginTop: 8 },
-  progressFill: { height: "100%", borderRadius: 3 },
   empty: { textAlign: "center", color: colors.inkDim, fontSize: 13, fontFamily: fonts.regular, marginBottom: 12 },
   activityCard: { borderRadius: radii["2xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card },
   activityRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 12 },

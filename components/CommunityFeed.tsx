@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
 import { getChoiceLabel } from "@/lib/markets";
 import { formatTL } from "@/lib/format";
@@ -15,11 +16,24 @@ function timeAgo(date: Date): string {
   return `${days}g önce`;
 }
 
-export default function CommunityFeed({ items }: { items: CommunityFeedItem[] }) {
+export default function CommunityFeed({
+  items,
+  viewAllHref,
+}: {
+  items: CommunityFeedItem[];
+  // Only the preview on /siralama links out to the full feed page — the full
+  // feed page itself renders this same component with no link back to itself.
+  viewAllHref?: string;
+}) {
   return (
     <div>
       <div className="mb-1 flex items-end justify-between">
         <h2 className="font-display text-xl">Topluluk Akışı</h2>
+        {viewAllHref && (
+          <Link href={viewAllHref} className="text-xs font-bold text-gold">
+            Tümünü gör
+          </Link>
+        )}
       </div>
       <p className="mb-3 text-sm text-ink-dim">Grubun içindeki taraftarlar hangi maça ne oynadı.</p>
 

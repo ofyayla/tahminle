@@ -51,6 +51,9 @@ export type CurrentUser = {
   balance: number;
   startBalance: number;
   createdAt: string;
+  // Optional: an older deployed backend may not send this yet — treat
+  // missing as "unknown", not "no password" (see hesabim.tsx).
+  hasPassword?: boolean;
 };
 
 // Mirrors lib/data.ts's LeaderboardRow — ranking is by net kâr, not balance.
@@ -181,6 +184,46 @@ export const api = {
 
   getAccount: () =>
     request<{ user: CurrentUser; rank: number | null; totalPlayers: number }>("/api/account"),
+
+  updateAccount: (displayName: string) =>
+    request<{ ok: true; displayName: string }>("/api/account", {
+      method: "PATCH",
+      body: JSON.stringify({ displayName }),
+    }),
+
+  changePassword: (currentPassword: string | null, newPassword: string) =>
+    request<{ ok: true }>("/api/account/password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+
+  getCommunityFeed: () =>
+    request<{
+      feed: {
+        id: string;
+        displayName: string;
+        favoriteTeam: TeamCode | null;
+        market: string;
+        choice: string;
+        stake: number;
+        homeTeam: string;
+        awayTeam: string;
+        isYou: boolean;
+        at: string;
+      }[];
+    }>("/api/community-feed"),
+
+  getActivity: () =>
+    request<{
+      activity: {
+        id: string;
+        kind: "system" | "lock" | "win" | "loss" | "cancel" | "insured";
+        title: string;
+        subtitle: string;
+        amount: number;
+        at: string;
+      }[];
+    }>("/api/activity"),
 
 
   getMatches: () =>

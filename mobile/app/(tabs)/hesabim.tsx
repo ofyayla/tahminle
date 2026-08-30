@@ -1,19 +1,31 @@
 import { useCallback, useState } from "react";
 import { useFocusEffect } from "expo-router";
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { formatMatchDate } from "@/lib/format";
 import { TEAM_META } from "@/lib/teams";
 import { colors, fonts, radii } from "@/lib/theme";
 import { useAuth } from "@/lib/auth-context";
-import { api } from "@/lib/api";
-import { IconLogout } from "@/components/icons";
+import { api, ApiError } from "@/lib/api";
+import { IconCheck, IconLogout, IconPencil, IconX } from "@/components/icons";
 
 export default function HesabimScreen() {
   const { user, rank, totalPlayers, refresh, logout } = useAuth();
   const [loading, setLoading] = useState(true);
   const [titles, setTitles] = useState({ weeklyCount: 0, seasonCount: 0 });
+
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  const [editingPassword, setEditingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSaved, setPwSaved] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -27,6 +39,51 @@ export default function HesabimScreen() {
       ]).finally(() => setLoading(false));
     }, [refresh])
   );
+
+  async function saveName() {
+    setNameError(null);
+    const trimmed = nameInput.trim();
+    if (trimmed.length < 2) {
+      setNameError("Kullanıcı adı en az 2 karakter olmalı.");
+      return;
+    }
+    setNameSaving(true);
+    try {
+      await api.updateAccount(trimmed);
+      await refresh();
+      setEditingName(false);
+    } catch (err) {
+      setNameError(err instanceof ApiError ? err.message : "Kaydedilemedi.");
+    } finally {
+      setNameSaving(false);
+    }
+  }
+
+  async function savePassword() {
+    setPwError(null);
+    setPwSaved(false);
+    if (newPassword.length < 6) {
+      setPwError("Yeni şifre en az 6 karakter olmalı.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPwError("Yeni şifreler eşleşmiyor.");
+      return;
+    }
+    setPwSaving(true);
+    try {
+      await api.changePassword(currentPassword || null, newPassword);
+      setPwSaved(true);
+      setEditingPassword(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      setPwError(err instanceof ApiError ? err.message : "Şifre değiştirilemedi.");
+    } finally {
+      setPwSaving(false);
+    }
+  }
 
   if (loading || !user) {
     return (
@@ -88,27 +145,131 @@ export default function HesabimScreen() {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Hesap Bilgileri</Text>
+        <Text style={styles.sectionTitle}>Hesap Ayarları</Text>
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Kullanıcı adı</Text>
-            <Text style={styles.infoValue}>{user.displayName}</Text>
+            {editingName ? (
+              <View style={{ flex: 1 }}>
+                <Text style={styles.infoLabel}>Kullanıcı adı</Text>
+                <View style={styles.editInputRow}>
+                  <TextInput
+                    style={[styles.input, { flex: 1 }]}
+                    value={nameInput}
+                    onChangeText={(v) => {
+                      setNameInput(v);
+                      setNameError(null);
+                    }}
+                    maxLength={40}
+                    autoFocus
+                  />
+                  <Pressable
+                    onPress={saveName}
+                    disabled={nameSaving || nameInput.trim().length < 2}
+                    style={[styles.saveIconBtn, (nameSaving || nameInput.trim().length < 2) && styles.iconBtnDisabled]}
+                    hitSlop={6}
+                  >
+                    <IconCheck size={16} color={colors.bg} />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      setEditingName(false);
+                      setNameError(null);
+                    }}
+                    style={styles.cancelIconBtn}
+                    hitSlop={6}
+                  >
+                    <IconX size={16} color={colors.inkDim} />
+                  </Pressable>
+                </View>
+                {nameError && <Text style={styles.errorText}>{nameError}</Text>}
+              </View>
+            ) : (
+              <>
+                <View>
+                  <Text style={styles.infoLabel}>Kullanıcı adı</Text>
+                  <Text style={[styles.infoValue, { marginTop: 2 }]}>{user.displayName}</Text>
+                </View>
+                <Pressable
+                  onPress={() => {
+                    setNameInput(user.displayName);
+                    setEditingName(true);
+                  }}
+                  style={styles.editIconBtn}
+                  hitSlop={8}
+                >
+                  <IconPencil size={16} color={colors.inkFaint} />
+                </Pressable>
+              </>
+            )}
           </View>
           <View style={[styles.infoRow, styles.infoDivider]}>
-            <Text style={styles.infoLabel}>E-posta</Text>
-            <Text style={styles.infoValue}>{user.email}</Text>
+            <View>
+              <Text style={styles.infoLabel}>E-posta</Text>
+              <Text style={[styles.infoValue, { marginTop: 2 }]}>{user.email}</Text>
+            </View>
           </View>
-          <View style={[styles.infoRow, styles.infoDivider]}>
-            <Text style={styles.infoLabel}>Tuttuğun takım</Text>
-            <Text style={styles.infoValue}>{meta?.name ?? "Seçilmedi"}</Text>
-          </View>
-          <View style={[styles.infoRow, styles.infoDivider]}>
-            <Text style={styles.infoLabel}>Üyelik başlangıcı</Text>
-            <Text style={styles.infoValue}>{formatMatchDate(new Date(user.createdAt))}</Text>
-          </View>
-          <View style={[styles.infoRow, styles.infoDivider]}>
-            <Text style={styles.infoLabel}>Başlangıç bakiyesi</Text>
-            <Text style={styles.infoValue}>₺{user.startBalance.toLocaleString("tr-TR")}</Text>
+          <View style={[styles.infoRow, styles.infoDivider, { flexDirection: "column", alignItems: "stretch" }]}>
+            {user.hasPassword === false ? (
+              <Text style={styles.infoLabel}>Google/Apple ile giriş yapıyorsun, ayarlı bir şifren yok.</Text>
+            ) : !editingPassword ? (
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <View>
+                  <Text style={styles.infoLabel}>Şifre</Text>
+                  <Text style={[styles.infoValue, styles.maskedValue]}>••••••••</Text>
+                </View>
+                <Pressable onPress={() => setEditingPassword(true)} style={styles.editIconBtn} hitSlop={8}>
+                  <IconPencil size={16} color={colors.inkFaint} />
+                </Pressable>
+              </View>
+            ) : (
+              <View style={{ gap: 8 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={styles.infoLabel}>Şifre değiştir</Text>
+                  <Pressable
+                    onPress={() => {
+                      setEditingPassword(false);
+                      setPwError(null);
+                      setCurrentPassword("");
+                      setNewPassword("");
+                      setConfirmPassword("");
+                    }}
+                    style={styles.cancelIconBtnSmall}
+                    hitSlop={8}
+                  >
+                    <IconX size={14} color={colors.inkFaint} />
+                  </Pressable>
+                </View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Mevcut şifre"
+                  placeholderTextColor={colors.inkFaint}
+                  secureTextEntry
+                  value={currentPassword}
+                  onChangeText={setCurrentPassword}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Yeni şifre (en az 6 karakter)"
+                  placeholderTextColor={colors.inkFaint}
+                  secureTextEntry
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Yeni şifre (tekrar)"
+                  placeholderTextColor={colors.inkFaint}
+                  secureTextEntry
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                />
+                {pwError && <Text style={styles.errorText}>{pwError}</Text>}
+                <Pressable onPress={savePassword} disabled={pwSaving} style={styles.saveBtnFull}>
+                  <Text style={styles.saveBtnText}>{pwSaving ? "Kaydediliyor..." : "Şifreyi Kaydet"}</Text>
+                </Pressable>
+              </View>
+            )}
+            {pwSaved && <Text style={styles.successText}>Şifren güncellendi.</Text>}
           </View>
         </View>
 
@@ -144,10 +305,57 @@ const styles = StyleSheet.create({
   titlePillText: { color: colors.inkDim, fontFamily: fonts.bold, fontSize: 11 },
   sectionTitle: { color: colors.ink, fontSize: 18, fontFamily: fonts.display, marginBottom: 4 },
   infoCard: { borderRadius: radii["2xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, marginTop: 20, marginBottom: 20 },
-  infoRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14 },
+  infoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14 },
   infoDivider: { borderTopWidth: 1, borderTopColor: colors.cardBorder },
   infoLabel: { color: colors.inkDim, fontSize: 13, fontFamily: fonts.regular },
   infoValue: { color: colors.ink, fontFamily: fonts.bold, fontSize: 13 },
+  maskedValue: { marginTop: 2, letterSpacing: 2 },
+  editIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editInputRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
+  saveIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.gold,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelIconBtnSmall: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconBtnDisabled: { opacity: 0.4 },
+  input: {
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: radii.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: colors.ink,
+    fontSize: 13,
+    fontFamily: fonts.regular,
+  },
+  errorText: { color: colors.red, fontSize: 12, fontFamily: fonts.regular },
+  successText: { color: colors.green, fontSize: 12, fontFamily: fonts.regular, marginTop: 8 },
+  saveBtnFull: { backgroundColor: colors.gold, borderRadius: radii.lg, paddingVertical: 10, alignItems: "center" },
+  saveBtnText: { color: colors.bg, fontFamily: fonts.bold, fontSize: 12 },
   logoutBtn: {
     flexDirection: "row",
     alignItems: "center",

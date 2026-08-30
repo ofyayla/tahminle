@@ -22,7 +22,7 @@ export default async function CuzdanPage() {
   await syncMatchState();
   const [wallet, activity, transferTargets, transferHistory, gifts, perks] = await Promise.all([
     getWalletSummary(user.id),
-    getRecentActivity(user.id),
+    getRecentActivity(user.id, 5),
     getTransferTargets(user.id),
     getTransferHistory(user.id),
     getGiftsFor(user.id),
@@ -62,14 +62,6 @@ export default async function CuzdanPage() {
     odds: g.prediction.oddsAtPick,
     status: g.prediction.status,
   }));
-  const weekChangePct = user.startBalance > 0 ? (wallet.weekChange / user.startBalance) * 100 : 0;
-  // Bu iki çubuk "şu an elindeki + açık tahminlerdeki" toplam üzerinden oran
-  // gösteriyor — toplam bakiyenin kendisi artık sadece kullanılabilir olanı
-  // yansıtıyor, ama kilitli payın görsel oranı hâlâ anlamlı olmalı.
-  const inPlayTotal = wallet.available + wallet.lockedInOpen;
-  const availablePct = inPlayTotal > 0 ? Math.round((wallet.available / inPlayTotal) * 100) : 0;
-  const lockedPct = inPlayTotal > 0 ? Math.round((wallet.lockedInOpen / inPlayTotal) * 100) : 0;
-
   const budgetOverCap = wallet.weeklyBudget.used > wallet.weeklyBudget.cap;
   const { segments: budgetSegs, denom: budgetDenom } = budgetSegments(
     wallet.weeklyBudget.byMatch,
@@ -173,64 +165,6 @@ export default async function CuzdanPage() {
         )}
       </section>
 
-      <section>
-        <div className="mb-3 flex items-end justify-between">
-          <h2 className="font-display text-xl">Bakiye akışı</h2>
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-green">
-            <span className="h-1.5 w-1.5 rounded-full bg-green" /> Canlı
-          </span>
-        </div>
-        <p className="mb-3 text-sm text-ink-dim">Tahminlerin ve sonuçların net görünümü.</p>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-card-border bg-card p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wide text-ink-dim">Kullanılabilir</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-green"><path d="M20 6L9 17l-5-5" /></svg>
-            </div>
-            <div className="font-display text-2xl">{formatTL(wallet.available)}</div>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-bg-elevated">
-              <div className="h-full rounded-full bg-green" style={{ width: `${availablePct}%` }} />
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-card-border bg-card p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wide text-ink-dim">Açık Tahminlerde</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-gold"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 018 0v3" /></svg>
-            </div>
-            <div className="font-display text-2xl">{formatTL(wallet.lockedInOpen)}</div>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-bg-elevated">
-              <div className="h-full rounded-full bg-gold" style={{ width: `${lockedPct}%` }} />
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-card-border bg-card p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wide text-ink-dim">Bu Hafta</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-green"><path d="M3 17l6-6 4 4 8-8M15 3h6v6" /></svg>
-            </div>
-            <div className={`font-display text-2xl ${wallet.weekChange >= 0 ? "text-green" : "text-red"}`}>
-              {wallet.weekChange >= 0 ? "+" : ""}
-              {formatTL(wallet.weekChange)}
-            </div>
-            <div className="mt-2 text-[11px] text-ink-dim">Son 7 gün · {weekChangePct >= 0 ? "+" : ""}{weekChangePct.toFixed(1)}%</div>
-          </div>
-
-          <div className="rounded-2xl border border-card-border bg-card p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wide text-ink-dim">Toplam Net</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-gold"><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></svg>
-            </div>
-            <div className={`font-display text-2xl ${wallet.totalNet >= 0 ? "text-gold" : "text-red"}`}>
-              {wallet.totalNet >= 0 ? "+" : ""}
-              {formatTL(wallet.totalNet)}
-            </div>
-            <div className="mt-2 text-[11px] text-ink-dim">Başlangıçtan beri</div>
-          </div>
-        </div>
-      </section>
-
       <PerksPanel perks={perks} />
 
       <TransferPanel
@@ -246,9 +180,9 @@ export default async function CuzdanPage() {
         available={wallet.available}
       />
 
-      <ActivityFeed items={activity} />
+      <ActivityFeed items={activity} viewAllHref="/cuzdan/hareketler" />
 
-      <InfoAccordion title="Nasıl hesaplanır?" subtitle="Sanal getirinin kısa açıklaması">
+      <InfoAccordion title="Nasıl hesaplanır?" subtitle="Sanal getirinin kısa açıklaması" defaultOpen={false}>
         Tahmin onaylandığında kilitlenen oran kullanılır.{" "}
         <span className="font-bold text-ink">Sanal getiri = sanal tahmin tutarı × kilitlenen oran.</span>{" "}
         Maç sonucu işlendiğinde tutar bakiyene eklenir veya rezerve edilen sanal bakiye güncellenir.

@@ -50,14 +50,24 @@ function ActivityIcon({ kind }: { kind: ActivityItem["kind"] }) {
   );
 }
 
-export default function ActivityFeed({ items }: { items: ActivityItem[] }) {
+export default function ActivityFeed({
+  items,
+  viewAllHref,
+}: {
+  items: ActivityItem[];
+  // Only the preview on /cuzdan links out to the full history page — the
+  // full history page itself renders this same component with no link back.
+  viewAllHref?: string;
+}) {
   return (
     <section>
       <div className="mb-1 flex items-end justify-between">
         <h2 className="font-display text-xl">Son Hareketler</h2>
-        <Link href="/tahminler" className="text-xs font-bold text-gold">
-          Tümünü gör
-        </Link>
+        {viewAllHref && (
+          <Link href={viewAllHref} className="text-xs font-bold text-gold">
+            Tümünü gör
+          </Link>
+        )}
       </div>
       <p className="mb-3 text-sm text-ink-dim">Her işlem bir maç veya sistem olayına bağlıdır.</p>
 

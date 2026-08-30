@@ -18,7 +18,7 @@ export async function GET() {
   const [user, wallet, activity] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: userId } }),
     getWalletSummary(userId),
-    getRecentActivity(userId),
+    getRecentActivity(userId, 5),
   ]);
 
   return NextResponse.json({

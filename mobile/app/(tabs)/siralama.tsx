@@ -210,7 +210,12 @@ export default function SiralamaScreen() {
               </InfoAccordion>
             </View>
 
-            <Text style={styles.sectionTitle}>Topluluk Akışı</Text>
+            <View style={styles.feedHeaderRow}>
+              <Text style={styles.sectionTitle}>Topluluk Akışı</Text>
+              <Pressable onPress={() => router.push("/akis")} hitSlop={8}>
+                <Text style={styles.viewAllText}>Tümünü gör</Text>
+              </Pressable>
+            </View>
             <Text style={styles.sectionSub}>Grubun içindeki taraftarlar hangi maça ne oynadı.</Text>
             {data.feed.length === 0 ? (
               <Text style={styles.empty}>Henüz kimse tahmin yapmadı — ilk sen ol.</Text>
@@ -338,6 +343,8 @@ const styles = StyleSheet.create({
   empty: { textAlign: "center", color: colors.inkDim, fontSize: 13, fontFamily: fonts.regular, marginVertical: 12 },
   sectionTitle: { color: colors.ink, fontSize: 20, fontFamily: fonts.display, marginTop: 8 },
   sectionSub: { color: colors.inkDim, fontSize: 13, fontFamily: fonts.regular, marginTop: 4, marginBottom: 12 },
+  feedHeaderRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 8 },
+  viewAllText: { color: colors.gold, fontSize: 12, fontFamily: fonts.bold },
   feedCard: { borderRadius: radii["2xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card },
   feedRow: { flexDirection: "row", gap: 10, paddingHorizontal: 14, paddingVertical: 12 },
   feedDivider: { borderTopWidth: 1, borderTopColor: colors.cardBorder },

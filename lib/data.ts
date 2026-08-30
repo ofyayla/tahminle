@@ -371,8 +371,12 @@ export type CommunityFeedItem = {
   at: Date;
 };
 
-export async function getCommunityFeed(currentUserId: string, limit = 15): Promise<CommunityFeedItem[]> {
+export async function getCommunityFeed(currentUserId: string, limit = 5): Promise<CommunityFeedItem[]> {
   const predictions = await prisma.prediction.findMany({
+    // Only surface a pick once its match has kicked off — showing it while
+    // the match is still "upcoming" would let people see what others staked
+    // before placing (or changing) their own bet, which defeats the point.
+    where: { match: { status: { not: "upcoming" } } },
     orderBy: { createdAt: "desc" },
     take: limit,
     include: {

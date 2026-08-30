@@ -2,9 +2,9 @@ import Image from "next/image";
 import { getCurrentUser } from "@/lib/auth";
 import { getLeaderboard } from "@/lib/data";
 import { getMyChampionCounts } from "@/lib/archive";
-import { formatMatchDate } from "@/lib/format";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
 import LogoutButton from "@/components/LogoutButton";
+import AccountSettings from "@/components/AccountSettings";
 
 export default async function HesabimPage() {
   const user = await getCurrentUser();
@@ -71,31 +71,7 @@ export default async function HesabimPage() {
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-3 font-display text-xl">Hesap Bilgileri</h2>
-        <div className="divide-y divide-card-border rounded-2xl border border-card-border bg-card">
-          <div className="flex items-center justify-between px-4 py-3.5">
-            <span className="text-sm text-ink-dim">Kullanıcı adı</span>
-            <span className="text-sm font-bold">{user.displayName}</span>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3.5">
-            <span className="text-sm text-ink-dim">E-posta</span>
-            <span className="text-sm font-bold">{user.email}</span>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3.5">
-            <span className="text-sm text-ink-dim">Tuttuğun takım</span>
-            <span className="text-sm font-bold">{meta?.name ?? "Seçilmedi"}</span>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3.5">
-            <span className="text-sm text-ink-dim">Üyelik başlangıcı</span>
-            <span className="text-sm font-bold">{formatMatchDate(user.createdAt)}</span>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3.5">
-            <span className="text-sm text-ink-dim">Başlangıç bakiyesi</span>
-            <span className="text-sm font-bold">₺{user.startBalance.toLocaleString("tr-TR")}</span>
-          </div>
-        </div>
-      </section>
+      <AccountSettings displayName={user.displayName} email={user.email} hasPassword={user.passwordHash != null} />
 
       <section>
         <LogoutButton full />

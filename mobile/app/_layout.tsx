@@ -69,6 +69,8 @@ function RootNavigator() {
         <Stack.Screen name="ligler" options={{ animation: "slide_from_right" }} />
         <Stack.Screen name="lig" options={{ animation: "slide_from_right" }} />
         <Stack.Screen name="arsiv" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="akis" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="hareketler" options={{ animation: "slide_from_right" }} />
       </Stack.Protected>
       <Stack.Protected guard={!user}>
         <Stack.Screen name="login" />

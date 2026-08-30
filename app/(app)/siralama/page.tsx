@@ -57,7 +57,7 @@ export default async function SiralamaPage() {
       </InfoAccordion>
 
       <section>
-        <CommunityFeed items={feed} />
+        <CommunityFeed items={feed} viewAllHref="/siralama/akis" />
       </section>
     </div>
   );
