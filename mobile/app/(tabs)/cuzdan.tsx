@@ -5,9 +5,11 @@ import InfoAccordion from "@/components/InfoAccordion";
 import GoldGlow from "@/components/GoldGlow";
 import TransferPanel from "@/components/TransferPanel";
 import GiftPanel from "@/components/GiftPanel";
+import PerksPanel from "@/components/PerksPanel";
 import { IconCheck, IconCirclePlus, IconInfo, IconLock, IconShield, IconTrendUpArrow, IconUndo, IconWallet, IconX } from "@/components/icons";
 import ErrorBanner from "@/components/ErrorBanner";
 import { api } from "@/lib/api";
+import type { UserPerkStatus } from "@/lib/api";
 import { useScreenLoad } from "@/lib/useScreenLoad";
 import { budgetSegments, formatMatchDate, formatTime, formatTL } from "@/lib/format";
 import { colors, fonts, radii } from "@/lib/theme";
@@ -28,19 +30,22 @@ export default function CuzdanScreen() {
   const [data, setData] = useState<WalletData | null>(null);
   const [transfers, setTransfers] = useState<TransferData | null>(null);
   const [gifts, setGifts] = useState<GiftData | null>(null);
+  const [perks, setPerks] = useState<UserPerkStatus | null>(null);
 
   const load = useCallback(async () => {
-    const [wallet, transferData, giftData] = await Promise.all([
+    const [wallet, transferData, giftData, perksData] = await Promise.all([
       api.getWallet(),
       api.getTransfers(),
       api.getGifts(),
+      api.getPerks(),
     ]);
     setData(wallet);
     setTransfers(transferData);
     setGifts(giftData);
+    setPerks(perksData);
   }, []);
 
-  const { loading, refreshing, error, refresh } = useScreenLoad(load);
+  const { loading, refreshing, error, refresh, reload } = useScreenLoad(load);
 
   // On a failed load `data` stays null, so falling through to the spinner
   // would leave the screen spinning forever with nothing to act on.
@@ -228,6 +233,8 @@ export default function CuzdanScreen() {
             <Text style={styles.gridFooterText}>Başlangıçtan beri</Text>
           </View>
         </View>
+
+        {perks && <PerksPanel perks={perks} onChanged={reload} />}
 
         {transfers && (
           <View style={{ marginBottom: 12 }}>

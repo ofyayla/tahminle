@@ -127,6 +127,24 @@ export type SentGift = {
   status: string;
 };
 
+// Mirrors lib/data.ts's WeeklyBankoStatus.
+export type WeeklyBankoStatus = { predictionId: string; matchId: string; label: string; locked: boolean } | null;
+
+// Mirrors lib/perks.ts's UserPerkStatus.
+export type UserPerkStatus = {
+  doubleKasa: { available: boolean; usedForWeekStart: string | null };
+  insurance: { available: boolean; usedForPredictionId: string | null };
+};
+
+// Mirrors lib/leagues.ts's MyLeague/LeagueDetail.
+export type MyLeague = { id: string; name: string; inviteCode: string; memberCount: number; isOwner: boolean };
+export type LeagueDetail = MyLeague & { week: LeaderboardScope; season: LeaderboardScope };
+
+// Mirrors lib/archive.ts.
+export type WeeklyChampionEntry = { weekStart: string; displayName: string; favoriteTeam: TeamCode | null; net: number; bonus: number };
+export type SeasonChampionEntry = { seasonStart: string; displayName: string; favoriteTeam: TeamCode | null; net: number };
+export type FormPoint = { weekStart: string; net: number };
+
 export const api = {
   login: (email: string, password: string) =>
     request<{ ok: true; token: string; user: { id: string; email: string; displayName: string } }>(
@@ -165,13 +183,61 @@ export const api = {
     request<{ user: CurrentUser; rank: number | null; totalPlayers: number }>("/api/account"),
 
 
-  getMatches: () => request<{ matches: MatchDTO[]; available: number }>("/api/matches"),
+  getMatches: () =>
+    request<{ matches: MatchDTO[]; available: number; weeklyBanko: WeeklyBankoStatus }>("/api/matches"),
 
-  placePrediction: (matchId: string, market: string, choice: string, stake: number) =>
-    request<{ ok: true; prediction: unknown }>("/api/predictions", {
+  placePrediction: (matchId: string, market: string, choice: string, stake: number, isBanko = false) =>
+    request<{ ok: true; prediction: unknown; bankoError: string | null }>("/api/predictions", {
       method: "POST",
-      body: JSON.stringify({ matchId, market, choice, stake }),
+      body: JSON.stringify({ matchId, market, choice, stake, isBanko }),
     }),
+
+  setBanko: (predictionId: string) =>
+    request<{ ok: true }>("/api/predictions/banko", {
+      method: "POST",
+      body: JSON.stringify({ predictionId }),
+    }),
+
+  clearBanko: (predictionId: string) =>
+    request<{ ok: true }>("/api/predictions/banko", {
+      method: "DELETE",
+      body: JSON.stringify({ predictionId }),
+    }),
+
+  getPerks: () => request<UserPerkStatus>("/api/perks"),
+
+  activateDoubleKasa: () => request<{ ok: true }>("/api/perks/double-kasa", { method: "POST" }),
+
+  activateInsurance: (predictionId: string) =>
+    request<{ ok: true }>("/api/perks/insurance", {
+      method: "POST",
+      body: JSON.stringify({ predictionId }),
+    }),
+
+  getMyLeagues: () => request<{ leagues: MyLeague[] }>("/api/leagues"),
+
+  createLeague: (name: string) =>
+    request<{ ok: true; leagueId: string; inviteCode: string }>("/api/leagues", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+
+  joinLeague: (code: string) =>
+    request<{ ok: true; leagueId: string }>("/api/leagues/join", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    }),
+
+  getLeagueDetail: (id: string) => request<{ league: LeagueDetail }>(`/api/leagues/${id}`),
+
+  getArchive: () =>
+    request<{
+      weeklyChampions: WeeklyChampionEntry[];
+      seasonChampions: SeasonChampionEntry[];
+      form: FormPoint[];
+      myWeeklyTitles: number;
+      mySeasonTitles: number;
+    }>("/api/archive"),
 
   getPredictions: () =>
     request<{

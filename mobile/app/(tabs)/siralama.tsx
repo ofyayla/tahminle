@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "expo-router";
 import { ActivityIndicator, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InfoAccordion from "@/components/InfoAccordion";
@@ -47,6 +48,7 @@ function NetAmount({ net, style }: { net: number; style: object }) {
 }
 
 export default function SiralamaScreen() {
+  const router = useRouter();
   const [data, setData] = useState<LeaderboardData | null>(null);
   const [scope, setScope] = useState<"week" | "season">("week");
   const [filter, setFilter] = useState<TeamCode | "ALL">("ALL");
@@ -101,6 +103,17 @@ export default function SiralamaScreen() {
             <Text style={styles.pageSub}>
               Net kârına göre sıralanıyorsun. Bakiyen ne kadar büyük olursa olsun herkesin kasası aynı.
             </Text>
+
+            <View style={styles.entryRow}>
+              <Pressable style={styles.entryCard} onPress={() => router.push("/ligler")}>
+                <Text style={{ fontSize: 18 }}>👥</Text>
+                <Text style={styles.entryText}>Arkadaş Ligleri</Text>
+              </Pressable>
+              <Pressable style={styles.entryCard} onPress={() => router.push("/arsiv")}>
+                <Text style={{ fontSize: 18 }}>🏆</Text>
+                <Text style={styles.entryText}>Sezon Arşivi</Text>
+              </Pressable>
+            </View>
 
             <View style={styles.scopeRow}>
               {SCOPES.map((s) => (
@@ -258,7 +271,20 @@ const styles = StyleSheet.create({
   eyebrow: { color: colors.gold, fontSize: 11, fontFamily: fonts.bold, textTransform: "uppercase", letterSpacing: 2 },
   title: { color: colors.ink, fontSize: 28, fontFamily: fonts.display, marginTop: 6 },
   pageSub: { color: colors.inkDim, fontSize: 13, fontFamily: fonts.regular, marginTop: 8, marginBottom: 16 },
-  scopeRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
+  entryRow: { flexDirection: "row", gap: 8, marginTop: 16, marginBottom: 4 },
+  entryCard: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: radii["2xl"],
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
+    padding: 14,
+  },
+  entryText: { color: colors.ink, fontFamily: fonts.bold, fontSize: 12 },
+  scopeRow: { flexDirection: "row", gap: 8, marginBottom: 16, marginTop: 16 },
   scopeChip: {
     flex: 1,
     alignItems: "center",

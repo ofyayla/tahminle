@@ -7,16 +7,24 @@ import { formatMatchDate } from "@/lib/format";
 import { TEAM_META } from "@/lib/teams";
 import { colors, fonts, radii } from "@/lib/theme";
 import { useAuth } from "@/lib/auth-context";
+import { api } from "@/lib/api";
 import { IconLogout } from "@/components/icons";
 
 export default function HesabimScreen() {
   const { user, rank, totalPlayers, refresh, logout } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [titles, setTitles] = useState({ weeklyCount: 0, seasonCount: 0 });
 
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      refresh().finally(() => setLoading(false));
+      Promise.all([
+        refresh(),
+        api
+          .getArchive()
+          .then((a) => setTitles({ weeklyCount: a.myWeeklyTitles, seasonCount: a.mySeasonTitles }))
+          .catch(() => {}),
+      ]).finally(() => setLoading(false));
     }, [refresh])
   );
 
@@ -61,6 +69,20 @@ export default function HesabimScreen() {
                 <Text style={styles.rankPillText}>
                   Sıralamada #{rank} · {totalPlayers} taraftar arasında
                 </Text>
+              </View>
+            )}
+            {(titles.weeklyCount > 0 || titles.seasonCount > 0) && (
+              <View style={styles.titleRow}>
+                {titles.seasonCount > 0 && (
+                  <View style={styles.titlePillGold}>
+                    <Text style={styles.titlePillGoldText}>🏆 {titles.seasonCount} sezon birincisi</Text>
+                  </View>
+                )}
+                {titles.weeklyCount > 0 && (
+                  <View style={styles.titlePill}>
+                    <Text style={styles.titlePillText}>🏆 {titles.weeklyCount} hafta birincisi</Text>
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -115,6 +137,11 @@ const styles = StyleSheet.create({
   profileEmail: { color: colors.inkDim, fontSize: 13, fontFamily: fonts.regular, marginTop: 4 },
   rankPill: { marginTop: 12, borderWidth: 1, borderColor: `${colors.gold}66`, backgroundColor: `${colors.gold}1A`, borderRadius: radii.full, paddingHorizontal: 14, paddingVertical: 6 },
   rankPillText: { color: colors.gold, fontFamily: fonts.bold, fontSize: 12 },
+  titleRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 8 },
+  titlePillGold: { borderWidth: 1, borderColor: `${colors.gold}66`, backgroundColor: `${colors.gold}1A`, borderRadius: radii.full, paddingHorizontal: 12, paddingVertical: 5 },
+  titlePillGoldText: { color: colors.gold, fontFamily: fonts.bold, fontSize: 11 },
+  titlePill: { borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.bgElevated, borderRadius: radii.full, paddingHorizontal: 12, paddingVertical: 5 },
+  titlePillText: { color: colors.inkDim, fontFamily: fonts.bold, fontSize: 11 },
   sectionTitle: { color: colors.ink, fontSize: 18, fontFamily: fonts.display, marginBottom: 4 },
   infoCard: { borderRadius: radii["2xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, marginTop: 20, marginBottom: 20 },
   infoRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14 },

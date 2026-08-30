@@ -66,6 +66,9 @@ function RootNavigator() {
       <Stack.Protected guard={!!user && user.favoriteTeam != null}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="bildirimler" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="ligler" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="lig" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="arsiv" options={{ animation: "slide_from_right" }} />
       </Stack.Protected>
       <Stack.Protected guard={!user}>
         <Stack.Screen name="login" />

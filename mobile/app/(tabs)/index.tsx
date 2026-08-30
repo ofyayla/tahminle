@@ -15,6 +15,7 @@ import { countUnread, getNotificationsSeenAt } from "@/lib/notificationsSeen";
 import { getOddsFor, type MarketCode } from "@/lib/markets";
 import { formatTL, formatTime } from "@/lib/format";
 import type { MatchDTO } from "@/lib/types";
+import type { WeeklyBankoStatus } from "@/lib/api";
 import { colors, fonts, radii } from "@/lib/theme";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
 import { useAuth } from "@/lib/auth-context";
@@ -25,6 +26,7 @@ export default function MacGunuScreen() {
   const router = useRouter();
   const [matches, setMatches] = useState<MatchDTO[]>([]);
   const [available, setAvailable] = useState(0);
+  const [weeklyBanko, setWeeklyBanko] = useState<WeeklyBankoStatus>(null);
   const [wallet, setWallet] = useState({ openCount: 0, lockedInOpen: 0, potentialReturn: 0, total: 0 });
   const [unread, setUnread] = useState(0);
   // Which of the compact rows the user has opened. The featured match is
@@ -36,6 +38,7 @@ export default function MacGunuScreen() {
     const [matchesData, walletData] = await Promise.all([api.getMatches(), api.getWallet()]);
     setMatches(matchesData.matches);
     setAvailable(matchesData.available);
+    setWeeklyBanko(matchesData.weeklyBanko);
     setWallet(walletData.wallet);
 
     // The badge is a nicety — a failure here must not take the screen down.
@@ -225,6 +228,7 @@ export default function MacGunuScreen() {
           available={available}
           weekBudget={selection.match.weekBudget}
           matchBudget={selection.match.matchBudget}
+          weeklyBanko={weeklyBanko}
           onClose={() => setSelection(null)}
           onSuccess={async () => {
             setSelection(null);

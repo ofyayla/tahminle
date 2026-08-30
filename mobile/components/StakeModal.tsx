@@ -4,7 +4,7 @@ import TeamAvatar from "./TeamAvatar";
 import { formatOdds, formatTL } from "@/lib/format";
 import { getChoiceLabel, getMarketName, type MarketCode } from "@/lib/markets";
 import type { MatchDTO } from "@/lib/types";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, type WeeklyBankoStatus } from "@/lib/api";
 import { colors, fonts, radii } from "@/lib/theme";
 
 const QUICK_STAKES = [50, 100, 250, 500];
@@ -19,6 +19,7 @@ export default function StakeModal({
   available,
   weekBudget,
   matchBudget,
+  weeklyBanko,
   onClose,
   onSuccess,
 }: {
@@ -29,6 +30,7 @@ export default function StakeModal({
   available: number;
   weekBudget: Budget;
   matchBudget: Budget;
+  weeklyBanko: WeeklyBankoStatus;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -38,6 +40,8 @@ export default function StakeModal({
   const [stake, setStake] = useState(String(Math.min(100, cap)));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [wantsBanko, setWantsBanko] = useState(false);
 
   const stakeNum = Number(stake) || 0;
   const potential = Math.round(stakeNum * odds);
@@ -46,8 +50,12 @@ export default function StakeModal({
   const matchBinds = matchBudget.remaining < weekBudget.remaining && matchBudget.remaining < available;
   const weekPct = weekBudget.cap > 0 ? Math.min(100, Math.round((weekBudget.used / weekBudget.cap) * 100)) : 0;
 
+  const bankoLockedElsewhere = !!weeklyBanko && weeklyBanko.matchId !== match.id && weeklyBanko.locked;
+  const movesExistingBanko = !!weeklyBanko && weeklyBanko.matchId !== match.id && !weeklyBanko.locked;
+
   async function submit() {
     setError(null);
+    setNotice(null);
     if (stakeNum < 10) {
       setError("En az ₺10 stake girmelisin.");
       return;
@@ -66,7 +74,11 @@ export default function StakeModal({
     }
     setLoading(true);
     try {
-      await api.placePrediction(match.id, market, choice, stakeNum);
+      const res = await api.placePrediction(match.id, market, choice, stakeNum, wantsBanko);
+      if (res.bankoError) {
+        setNotice(`Tahmin kilitlendi ama Banko atanamadı: ${res.bankoError}`);
+        return;
+      }
       onSuccess();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Tahmin oluşturulamadı.");
@@ -135,11 +147,34 @@ export default function StakeModal({
             ))}
           </View>
 
+          <Pressable
+            disabled={bankoLockedElsewhere}
+            onPress={() => setWantsBanko((v) => !v)}
+            style={[styles.bankoBox, wantsBanko && styles.bankoBoxActive, bankoLockedElsewhere && { opacity: 0.5 }]}
+          >
+            <View style={styles.bankoTopRow}>
+              <Text style={styles.bankoTitle}>🎖 Bu tahmini Banko yap</Text>
+              <View style={[styles.toggleTrack, wantsBanko && styles.toggleTrackActive]}>
+                <View style={[styles.toggleThumb, wantsBanko && styles.toggleThumbActive]} />
+              </View>
+            </View>
+            <Text style={styles.bankoNote}>
+              {bankoLockedElsewhere
+                ? `Bu haftanın bankosu kilitli: ${weeklyBanko!.label}`
+                : movesExistingBanko
+                ? `Bankonu buradan taşır (şu an: ${weeklyBanko!.label})`
+                : "Tutarsa kârın iki katına çıkar. Haftada bir kez, maç başlayana kadar değiştirebilirsin."}
+            </Text>
+          </Pressable>
+
           <View style={styles.potentialRow}>
-            <Text style={styles.stakeLabel}>Olası dönüş</Text>
-            <Text style={styles.potentialValue}>{formatTL(potential)}</Text>
+            <Text style={styles.stakeLabel}>{wantsBanko ? "Banko tutarsa" : "Olası dönüş"}</Text>
+            <Text style={[styles.potentialValue, wantsBanko && { color: colors.gold }]}>
+              {formatTL(wantsBanko ? potential * 2 : potential)}
+            </Text>
           </View>
 
+          {notice && <Text style={styles.notice}>{notice}</Text>}
           {error && <Text style={styles.error}>{error}</Text>}
 
           <Pressable style={[styles.submit, loading && { opacity: 0.6 }]} onPress={submit} disabled={loading}>
@@ -235,6 +270,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   quickChipText: { color: colors.inkDim, fontSize: 12, fontFamily: fonts.semibold },
+  bankoBox: {
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.bgElevated,
+    borderRadius: radii.xl,
+    padding: 14,
+    marginBottom: 12,
+  },
+  bankoBoxActive: { borderColor: colors.gold, backgroundColor: `${colors.gold}1A` },
+  bankoTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  bankoTitle: { color: colors.ink, fontFamily: fonts.bold, fontSize: 13 },
+  bankoNote: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular, marginTop: 6 },
+  toggleTrack: {
+    width: 36,
+    height: 20,
+    borderRadius: radii.full,
+    backgroundColor: colors.cardBorder,
+    padding: 2,
+    justifyContent: "center",
+  },
+  toggleTrackActive: { backgroundColor: colors.gold },
+  toggleThumb: { width: 16, height: 16, borderRadius: 8, backgroundColor: colors.card },
+  toggleThumbActive: { alignSelf: "flex-end", backgroundColor: colors.bg },
   potentialRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -246,6 +304,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   potentialValue: { color: colors.green, fontFamily: fonts.display, fontSize: 15 },
+  notice: {
+    color: colors.goldDim,
+    fontSize: 13,
+    fontFamily: fonts.regular,
+    marginBottom: 12,
+    textAlign: "center",
+    backgroundColor: `${colors.gold}1A`,
+    borderRadius: radii.lg,
+    paddingVertical: 8,
+  },
   error: {
     color: colors.red,
     fontSize: 13,

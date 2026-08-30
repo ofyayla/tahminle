@@ -5,6 +5,7 @@ import PredictionCard from "@/components/PredictionCard";
 import { IconShield, IconTrendUpArrow } from "@/components/icons";
 import ErrorBanner from "@/components/ErrorBanner";
 import { api } from "@/lib/api";
+import type { UserPerkStatus, WeeklyBankoStatus } from "@/lib/api";
 import { useScreenLoad } from "@/lib/useScreenLoad";
 import { formatTL } from "@/lib/format";
 import type { PredictionDTO } from "@/lib/predictionTypes";
@@ -15,15 +16,34 @@ export default function TahminlerScreen() {
   const [settled, setSettled] = useState<PredictionDTO[]>([]);
   const [stats, setStats] = useState({ total: 0, correct: 0, netEffect: 0 });
   const [tab, setTab] = useState<"open" | "settled">("open");
+  const [perks, setPerks] = useState<UserPerkStatus | null>(null);
+  const [weeklyBanko, setWeeklyBanko] = useState<WeeklyBankoStatus>(null);
 
   const load = useCallback(async () => {
-    const data = await api.getPredictions();
+    const [data, perksData] = await Promise.all([api.getPredictions(), api.getPerks()]);
     setOpen(data.open);
     setSettled(data.settled);
     setStats(data.stats);
+    setPerks(perksData);
+
+    // Derived from the same fetch rather than a second request — the open
+    // prediction carrying isBanko:true (if any) IS this week's Banko. Computed
+    // here (an event-handler-like async callback), not during render, since
+    // reading Date.now() straight in the render body isn't pure.
+    const current = data.open.find((p) => p.isBanko);
+    setWeeklyBanko(
+      current
+        ? {
+            predictionId: current.id,
+            matchId: current.match.id,
+            label: `${current.match.homeTeam} – ${current.match.awayTeam}`,
+            locked: new Date(current.match.kickoff).getTime() <= Date.now(),
+          }
+        : null
+    );
   }, []);
 
-  const { loading, refreshing, error, refresh } = useScreenLoad(load);
+  const { loading, refreshing, error, refresh, reload } = useScreenLoad(load);
 
   const list = tab === "open" ? open : settled;
 
@@ -93,7 +113,7 @@ export default function TahminlerScreen() {
         }
         renderItem={({ item }) => (
           <View style={{ marginBottom: 12 }}>
-            <PredictionCard prediction={item} />
+            <PredictionCard prediction={item} weeklyBanko={weeklyBanko} perks={perks} onChanged={reload} />
           </View>
         )}
         ListEmptyComponent={
