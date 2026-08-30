@@ -81,15 +81,32 @@ async function fetchFromNesine(): Promise<BackendOddsMatch[]> {
   return results;
 }
 
+// superlig-odds-backend (ayrı bir servis, bu reponun dışında) şu an yalnızca
+// GS/FB/BJK'yı hedefliyor — target_teams alanı bunu doğruluyor. O servisin
+// kaynağına erişimimiz yok, o yüzden Trabzonspor (ve backend'in gözden
+// kaçırdığı herhangi bir GS/FB/BJK maçı) için Nesine bültenini her zaman
+// ayrıca çekip birleştiriyoruz; artık "backend boşsa Nesine'ye düş" değil,
+// "backend'in kapsamadığını Nesine'den tamamla" mantığı.
 async function fetchTrackedMatches(): Promise<BackendOddsMatch[]> {
-  try {
-    const backendMatches = await fetchOddsFromBackend();
-    if (backendMatches.length > 0) return backendMatches;
-  } catch (err) {
-    console.error("Oran backend'i alınamadı, Nesine'ye geçiliyor:", err);
-  }
+  const [backendMatches, nesineMatches] = await Promise.all([
+    fetchOddsFromBackend().catch((err) => {
+      console.error("Oran backend'i alınamadı:", err);
+      return [] as BackendOddsMatch[];
+    }),
+    fetchFromNesine().catch((err) => {
+      console.error("Nesine bülteni alınamadı:", err);
+      return [] as BackendOddsMatch[];
+    }),
+  ]);
 
-  return fetchFromNesine();
+  // Backend'in verisi daha zengin (ekstra market, alt/üst, KG, çifte şans) —
+  // aynı maç ikisinde de varsa backend'inkini tut, sadece backend'de hiç
+  // olmayan maçları (bugün itibariyle Trabzonspor'un tamamı) Nesine'den ekle.
+  const merged = [...backendMatches];
+  for (const m of nesineMatches) {
+    if (!merged.some((b) => isSameFixture(m, b))) merged.push(m);
+  }
+  return merged;
 }
 
 export async function scrapeAndUpdateMatches() {
