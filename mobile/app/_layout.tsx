@@ -71,6 +71,11 @@ function RootNavigator() {
         <Stack.Screen name="arsiv" options={{ animation: "slide_from_right" }} />
         <Stack.Screen name="akis" options={{ animation: "slide_from_right" }} />
         <Stack.Screen name="hareketler" options={{ animation: "slide_from_right" }} />
+        {/* The wallet's two irreversible flows. A modal owns the keyboard and
+            can be dismissed outright, which an accordion inside the scrolling
+            tab could not. */}
+        <Stack.Screen name="gonder" options={{ presentation: "modal" }} />
+        <Stack.Screen name="hediye" options={{ presentation: "modal" }} />
       </Stack.Protected>
       <Stack.Protected guard={!user}>
         <Stack.Screen name="login" />

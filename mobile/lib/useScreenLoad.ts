@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { ApiError } from "./api";
 
@@ -26,10 +26,22 @@ export function useScreenLoad(load: () => Promise<void>) {
     }
   }, [load]);
 
+  // Coming back to a screen — from a pushed detail, from a modal — shouldn't
+  // blank it out to a full-page spinner. Only the first load has nothing to
+  // show while it waits; later focuses refresh in place.
+  const firstLoad = useRef(true);
+
   useFocusEffect(
     useCallback(() => {
+      if (!firstLoad.current) {
+        run();
+        return;
+      }
       setLoading(true);
-      run().finally(() => setLoading(false));
+      run().finally(() => {
+        firstLoad.current = false;
+        setLoading(false);
+      });
     }, [run])
   );
 

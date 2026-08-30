@@ -4,10 +4,22 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from "react-native-safe-area-context";
 import InfoAccordion from "@/components/InfoAccordion";
 import GoldGlow from "@/components/GoldGlow";
-import TransferPanel from "@/components/TransferPanel";
-import GiftPanel from "@/components/GiftPanel";
-import PerksPanel from "@/components/PerksPanel";
-import { IconInfo, IconLock, IconShield, IconTrendUpArrow, IconUndo, IconWallet, IconX } from "@/components/icons";
+import DoubleKasaCta from "@/components/DoubleKasaCta";
+import GiftInbox from "@/components/GiftInbox";
+import PerkStrip from "@/components/PerkStrip";
+import WalletQuickActions from "@/components/WalletQuickActions";
+import {
+  IconArrowRight,
+  IconClock,
+  IconGift,
+  IconInfo,
+  IconLock,
+  IconShield,
+  IconTrendUpArrow,
+  IconUndo,
+  IconWallet,
+  IconX,
+} from "@/components/icons";
 import ErrorBanner from "@/components/ErrorBanner";
 import { api } from "@/lib/api";
 import type { UserPerkStatus } from "@/lib/api";
@@ -16,7 +28,6 @@ import { budgetSegments, formatMatchDate, formatTime, formatTL } from "@/lib/for
 import { colors, fonts, radii } from "@/lib/theme";
 
 type WalletData = Awaited<ReturnType<typeof api.getWallet>>;
-type TransferData = Awaited<ReturnType<typeof api.getTransfers>>;
 type GiftData = Awaited<ReturnType<typeof api.getGifts>>;
 
 const ACTIVITY_ICON: Record<string, { Icon: (p: { size: number; color: string }) => React.ReactNode; bg: string; color: string }> = {
@@ -30,19 +41,15 @@ const ACTIVITY_ICON: Record<string, { Icon: (p: { size: number; color: string })
 export default function CuzdanScreen() {
   const router = useRouter();
   const [data, setData] = useState<WalletData | null>(null);
-  const [transfers, setTransfers] = useState<TransferData | null>(null);
   const [gifts, setGifts] = useState<GiftData | null>(null);
   const [perks, setPerks] = useState<UserPerkStatus | null>(null);
 
+  // Transfers and gifts are composed on their own screens now — this one only
+  // needs the gift inbox, so the transfer request is gone from the tab's
+  // critical path.
   const load = useCallback(async () => {
-    const [wallet, transferData, giftData, perksData] = await Promise.all([
-      api.getWallet(),
-      api.getTransfers(),
-      api.getGifts(),
-      api.getPerks(),
-    ]);
+    const [wallet, giftData, perksData] = await Promise.all([api.getWallet(), api.getGifts(), api.getPerks()]);
     setData(wallet);
-    setTransfers(transferData);
     setGifts(giftData);
     setPerks(perksData);
   }, []);
@@ -75,6 +82,7 @@ export default function CuzdanScreen() {
     wallet.weeklyBudget.cap,
     wallet.weeklyBudget.used
   );
+  const unopenedGifts = gifts?.received.filter((g) => !g.opened).length ?? 0;
 
   return (
     <SafeAreaView style={styles.flex} edges={["top"]}>
@@ -114,6 +122,38 @@ export default function CuzdanScreen() {
             <Text style={styles.heroDisclaimerText}>Gerçek para kullanılmaz · yalnızca sanal tahmin</Text>
           </View>
         </View>
+
+        {/* Shortcuts sit directly under the balance, where a wallet's actions
+            are expected to be, and open their own screens instead of pushing
+            the rest of the page down. */}
+        <WalletQuickActions
+          actions={[
+            {
+              key: "gonder",
+              label: "Gönder",
+              Icon: IconArrowRight,
+              color: colors.green,
+              onPress: () => router.push("/gonder"),
+            },
+            {
+              key: "hediye",
+              label: "Hediye",
+              Icon: IconGift,
+              color: colors.gold,
+              badge: unopenedGifts,
+              onPress: () => router.push("/hediye"),
+            },
+            {
+              key: "gecmis",
+              label: "Geçmiş",
+              Icon: IconClock,
+              color: colors.inkDim,
+              onPress: () => router.push("/hareketler"),
+            },
+          ]}
+        />
+
+        {gifts && <GiftInbox received={gifts.received} onChanged={reload} />}
 
         <View style={styles.budgetCard}>
           <View style={styles.budgetHeaderRow}>
@@ -170,32 +210,21 @@ export default function CuzdanScreen() {
               Kasa kuralından önce yaptığın tahminler de bu toplama dahil. Gelecek Pazartesi&apos;den itibaren gerçek anlamda işleyecek.
             </Text>
           )}
+
+          {/* The joker that doubles this kasa belongs to this card, not to a
+              separate perks drawer — it surfaces where it pays off. */}
+          {perks && (
+            <DoubleKasaCta
+              perks={perks}
+              cap={wallet.weeklyBudget.cap}
+              used={wallet.weeklyBudget.used}
+              overCap={budgetOverCap}
+              onActivated={reload}
+            />
+          )}
         </View>
 
-        {perks && <PerksPanel perks={perks} onChanged={reload} />}
-
-        {transfers && (
-          <View style={{ marginBottom: 12 }}>
-            <TransferPanel
-              targets={transfers.targets}
-              history={transfers.history}
-              available={wallet.available}
-              onDone={load}
-            />
-          </View>
-        )}
-
-        {gifts && (
-          <View style={{ marginBottom: 20 }}>
-            <GiftPanel
-              targets={transfers?.targets ?? []}
-              received={gifts.received}
-              sent={gifts.sent}
-              available={wallet.available}
-              onDone={load}
-            />
-          </View>
-        )}
+        {perks && <PerkStrip perks={perks} />}
 
         <View style={styles.flowHeaderRow}>
           <Text style={styles.sectionTitle}>Son Hareketler</Text>
@@ -262,7 +291,9 @@ const styles = StyleSheet.create({
   list: { padding: 16, paddingBottom: 130 },
   eyebrow: { color: colors.gold, fontSize: 11, fontFamily: fonts.bold, textTransform: "uppercase", letterSpacing: 2 },
   title: { color: colors.ink, fontSize: 28, fontFamily: fonts.display, marginTop: 6, marginBottom: 16 },
-  heroCard: { borderRadius: radii["3xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 20, marginBottom: 20, overflow: "hidden" },
+  // Tighter than the other blocks: the quick-action row reads as part of the
+  // hero rather than as the next card down.
+  heroCard: { borderRadius: radii["3xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 20, marginBottom: 12, overflow: "hidden" },
   budgetCard: { borderRadius: radii["2xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 16, marginBottom: 20 },
   budgetHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 },
   budgetValue: { color: colors.ink, fontSize: 17, fontFamily: fonts.display, marginTop: 2 },
