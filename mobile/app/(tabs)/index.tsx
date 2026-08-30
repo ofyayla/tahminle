@@ -8,14 +8,15 @@ import MatchRowCompact from "@/components/MatchRowCompact";
 import StakeModal from "@/components/StakeModal";
 import BrandLogo from "@/components/BrandLogo";
 import ErrorBanner from "@/components/ErrorBanner";
-import { IconBell, IconTrendBars, IconWallet } from "@/components/icons";
+import { IconBell, IconChevronDown, IconPeople, IconTrendBars, IconWallet } from "@/components/icons";
+import InviteFriendsCard from "@/components/InviteFriendsCard";
 import { api } from "@/lib/api";
 import { useScreenLoad } from "@/lib/useScreenLoad";
 import { countUnread, getNotificationsSeenAt } from "@/lib/notificationsSeen";
 import { getOddsFor, type MarketCode } from "@/lib/markets";
 import { formatTL, formatTime } from "@/lib/format";
 import type { MatchDTO } from "@/lib/types";
-import type { WeeklyBankoStatus } from "@/lib/api";
+import type { MyLeague, WeeklyBankoStatus } from "@/lib/api";
 import { colors, fonts, radii } from "@/lib/theme";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
 import { useAuth } from "@/lib/auth-context";
@@ -29,6 +30,11 @@ export default function MacGunuScreen() {
   const [weeklyBanko, setWeeklyBanko] = useState<WeeklyBankoStatus>(null);
   const [wallet, setWallet] = useState({ openCount: 0, lockedInOpen: 0, potentialReturn: 0, total: 0 });
   const [unread, setUnread] = useState(0);
+  const [myLeagues, setMyLeagues] = useState<MyLeague[]>([]);
+  // The "Arkadaşlarını Davet Et" teaser below the hero starts collapsed —
+  // tapping it reveals InviteFriendsCard's representative ranking visual in
+  // place, rather than navigating away immediately.
+  const [inviteOpen, setInviteOpen] = useState(false);
   // Which of the compact rows the user has opened. The featured match is
   // always expanded, so it never appears here.
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -40,6 +46,15 @@ export default function MacGunuScreen() {
     setAvailable(matchesData.available);
     setWeeklyBanko(matchesData.weeklyBanko);
     setWallet(walletData.wallet);
+
+    // Same treatment as the notification badge below: a nicety, never a
+    // reason to take the whole screen down.
+    try {
+      const leaguesData = await api.getMyLeagues();
+      setMyLeagues(leaguesData.leagues);
+    } catch {
+      setMyLeagues([]);
+    }
 
     // The badge is a nicety — a failure here must not take the screen down.
     try {
@@ -129,6 +144,30 @@ export default function MacGunuScreen() {
                   </View>
                 </View>
               </View>
+            </View>
+
+            <View style={styles.inviteTeaser}>
+              <Pressable style={styles.inviteTeaserHeader} onPress={() => setInviteOpen((o) => !o)}>
+                <View style={styles.inviteTeaserIconWrap}>
+                  <IconPeople size={16} color={colors.gold} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inviteTeaserTitle}>Arkadaşlarını Davet Et</Text>
+                  <Text style={styles.inviteTeaserNote}>
+                    {myLeagues.length > 0
+                      ? "Katılan her arkadaşınla ikinize de ₺100 bonus."
+                      : "Kendi ligini kur, katılan her arkadaşınla ikinize de ₺100 bonus."}
+                  </Text>
+                </View>
+                <View style={inviteOpen ? { transform: [{ rotate: "180deg" }] } : undefined}>
+                  <IconChevronDown size={16} color={colors.inkDim} />
+                </View>
+              </Pressable>
+              {inviteOpen && (
+                <View style={styles.inviteTeaserBody}>
+                  <InviteFriendsCard league={myLeagues[0] ?? null} referralCode={user?.referralCode} />
+                </View>
+              )}
             </View>
 
             <View style={styles.statusCard}>
@@ -288,6 +327,19 @@ const styles = StyleSheet.create({
   statValueGold: { fontSize: 17, fontFamily: fonts.display, color: colors.gold, marginTop: 2 },
   statValue: { fontSize: 17, fontFamily: fonts.display, color: colors.ink, marginTop: 2 },
   statValueSub: { fontSize: 12, fontFamily: fonts.regular, color: colors.inkDim },
+  inviteTeaser: {
+    borderRadius: radii["2xl"],
+    borderWidth: 1,
+    borderColor: `${colors.gold}40`,
+    backgroundColor: `${colors.gold}0D`,
+    marginBottom: 20,
+    overflow: "hidden",
+  },
+  inviteTeaserHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: 16 },
+  inviteTeaserIconWrap: { width: 34, height: 34, borderRadius: 17, backgroundColor: `${colors.gold}26`, alignItems: "center", justifyContent: "center" },
+  inviteTeaserTitle: { color: colors.ink, fontFamily: fonts.bold, fontSize: 13 },
+  inviteTeaserNote: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular, marginTop: 3, lineHeight: 15 },
+  inviteTeaserBody: { borderTopWidth: 1, borderTopColor: `${colors.gold}26`, padding: 14 },
   statusCard: { borderRadius: radii["2xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 16, marginBottom: 20 },
   statusHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   statusEyebrow: { fontSize: 11, fontFamily: fonts.bold, color: colors.inkDim, textTransform: "uppercase" },

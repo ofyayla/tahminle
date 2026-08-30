@@ -12,8 +12,10 @@ import { formatTL, formatTime } from "@/lib/format";
 import MatchBoard from "@/components/MatchBoard";
 import BrandLogo from "@/components/BrandLogo";
 import NotificationBell from "@/components/NotificationBell";
+import InviteFriendsTeaser from "@/components/InviteFriendsTeaser";
 import type { MatchDTO } from "@/lib/types";
 import { prisma } from "@/lib/prisma";
+import { getMyLeagues } from "@/lib/leagues";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
 
 // getUpcomingMatches() -> syncMatchState() can fall back to a headless-browser
@@ -25,7 +27,7 @@ export default async function MacGunuPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const [matches, wallet, leaderboard, openPredictions, weeklyBanko] = await Promise.all([
+  const [matches, wallet, leaderboard, openPredictions, weeklyBanko, myLeagues] = await Promise.all([
     getUpcomingMatches(),
     getWalletSummary(user.id),
     getLeaderboard(user.id),
@@ -34,6 +36,7 @@ export default async function MacGunuPage() {
       select: { matchId: true, market: true, choice: true },
     }),
     getWeeklyBankoStatus(user.id),
+    getMyLeagues(user.id),
   ]);
   const openByMatchId = new Map<string, Record<string, string>>();
   for (const p of openPredictions) {
@@ -161,6 +164,8 @@ export default async function MacGunuPage() {
           </div>
         </div>
       </section>
+
+      <InviteFriendsTeaser myLeagues={myLeagues} referralCode={user.referralCode} />
 
       <section className="rounded-2xl border border-card-border bg-card p-4">
         <div className="mb-3 flex items-center justify-between">

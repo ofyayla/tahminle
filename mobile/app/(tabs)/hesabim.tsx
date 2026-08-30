@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -7,10 +7,9 @@ import { TEAM_META } from "@/lib/teams";
 import { colors, fonts, radii } from "@/lib/theme";
 import { useAuth } from "@/lib/auth-context";
 import { api, ApiError } from "@/lib/api";
-import { IconArrowRight, IconCheck, IconLogout, IconPencil, IconPeople, IconX } from "@/components/icons";
+import { IconCheck, IconLogout, IconPencil, IconX } from "@/components/icons";
 
 export default function HesabimScreen() {
-  const router = useRouter();
   const { user, rank, totalPlayers, refresh, logout } = useAuth();
   const [loading, setLoading] = useState(true);
   const [titles, setTitles] = useState({ weeklyCount: 0, seasonCount: 0 });
@@ -145,17 +144,6 @@ export default function HesabimScreen() {
             )}
           </View>
         </View>
-
-        <Pressable style={styles.inviteRow} onPress={() => router.push("/ligler")}>
-          <View style={styles.inviteIconWrap}>
-            <IconPeople size={17} color={colors.gold} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.inviteRowTitle}>Arkadaşlarını Davet Et</Text>
-            <Text style={styles.inviteRowNote}>Bir lig kur, katılan her arkadaşınla ikinize de ₺100 bonus.</Text>
-          </View>
-          <IconArrowRight size={14} color={colors.inkFaint} />
-        </Pressable>
 
         <Text style={styles.sectionTitle}>Hesap Ayarları</Text>
         <View style={styles.infoCard}>
@@ -315,20 +303,6 @@ const styles = StyleSheet.create({
   titlePillGoldText: { color: colors.gold, fontFamily: fonts.bold, fontSize: 11 },
   titlePill: { borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.bgElevated, borderRadius: radii.full, paddingHorizontal: 12, paddingVertical: 5 },
   titlePillText: { color: colors.inkDim, fontFamily: fonts.bold, fontSize: 11 },
-  inviteRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderRadius: radii["2xl"],
-    borderWidth: 1,
-    borderColor: `${colors.gold}59`,
-    backgroundColor: `${colors.gold}0D`,
-    padding: 16,
-    marginBottom: 20,
-  },
-  inviteIconWrap: { width: 34, height: 34, borderRadius: 17, backgroundColor: `${colors.gold}26`, alignItems: "center", justifyContent: "center" },
-  inviteRowTitle: { color: colors.ink, fontFamily: fonts.bold, fontSize: 13 },
-  inviteRowNote: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular, marginTop: 3, lineHeight: 15 },
   sectionTitle: { color: colors.ink, fontSize: 18, fontFamily: fonts.display, marginBottom: 4 },
   infoCard: { borderRadius: radii["2xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, marginTop: 20, marginBottom: 20 },
   infoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14 },

@@ -1,5 +1,4 @@
 import Image from "next/image";
-import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { getLeaderboard } from "@/lib/data";
 import { getMyChampionCounts } from "@/lib/archive";
@@ -71,24 +70,6 @@ export default async function HesabimPage() {
           )}
         </div>
       </section>
-
-      <Link
-        href="/siralama/ligler"
-        className="flex items-center gap-3 rounded-2xl border border-gold/35 bg-gold/[0.05] p-4 transition-colors hover:border-gold/60"
-      >
-        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gold/[0.15]">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-gold">
-            <path d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m5-2.13a4 4 0 100-8 4 4 0 000 8zm6 0a4 4 0 100-8" />
-          </svg>
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold">Arkadaşlarını Davet Et</p>
-          <p className="mt-0.5 text-xs text-ink-dim">Bir lig kur, katılan her arkadaşınla ikinize de ₺100 bonus.</p>
-        </div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 flex-shrink-0 text-ink-faint">
-          <path d="M9 18l6-6-6-6" />
-        </svg>
-      </Link>
 
       <AccountSettings displayName={user.displayName} email={user.email} hasPassword={user.passwordHash != null} />
 
