@@ -1,15 +1,15 @@
 import { getCurrentUser } from "@/lib/auth";
 import { getRecentActivity, getWalletSummary, syncMatchState } from "@/lib/data";
-import { getTransferHistory, getTransferTargets } from "@/lib/transfers";
 import { getGiftsFor } from "@/lib/gifts";
 import { getUserPerkStatus } from "@/lib/perks";
 import { getChoiceLabel, getMarketName, type MarketCode } from "@/lib/markets";
 import { budgetSegments, formatTL } from "@/lib/format";
 import ActivityFeed from "@/components/ActivityFeed";
 import InfoAccordion from "@/components/InfoAccordion";
-import TransferPanel from "@/components/TransferPanel";
-import GiftPanel from "@/components/GiftPanel";
-import PerksPanel from "@/components/PerksPanel";
+import DoubleKasaCta from "@/components/DoubleKasaCta";
+import GiftInbox from "@/components/GiftInbox";
+import PerkStrip from "@/components/PerkStrip";
+import WalletQuickActions from "@/components/WalletQuickActions";
 
 // syncMatchState() can fall back to a headless-browser live-score scrape
 // (lib/liveScoreScraper.ts), which needs more than the default timeout.
@@ -20,11 +20,11 @@ export default async function CuzdanPage() {
   if (!user) return null;
 
   await syncMatchState();
-  const [wallet, activity, transferTargets, transferHistory, gifts, perks] = await Promise.all([
+  // Transfer targets/history moved to /cuzdan/gonder — this page only needs
+  // the gift inbox, so that request is gone from its critical path.
+  const [wallet, activity, gifts, perks] = await Promise.all([
     getWalletSummary(user.id),
     getRecentActivity(user.id, 5),
-    getTransferTargets(user.id),
-    getTransferHistory(user.id),
     getGiftsFor(user.id),
     getUserPerkStatus(user.id),
   ]);
@@ -51,23 +51,13 @@ export default async function CuzdanPage() {
       : null,
   }));
 
-  const sentGifts = gifts.sent.map((g) => ({
-    id: g.id,
-    to: g.recipient.displayName,
-    price: g.price,
-    fee: g.fee,
-    opened: g.openedAt != null,
-    match: `${g.prediction.match.homeTeam} – ${g.prediction.match.awayTeam}`,
-    label: getChoiceLabel(g.prediction.match, g.prediction.market as MarketCode, g.prediction.choice),
-    odds: g.prediction.oddsAtPick,
-    status: g.prediction.status,
-  }));
   const budgetOverCap = wallet.weeklyBudget.used > wallet.weeklyBudget.cap;
   const { segments: budgetSegs, denom: budgetDenom } = budgetSegments(
     wallet.weeklyBudget.byMatch,
     wallet.weeklyBudget.cap,
     wallet.weeklyBudget.used
   );
+  const unopenedGifts = receivedGifts.filter((g) => !g.opened).length;
 
   return (
     <div className="flex flex-col gap-5 px-4 pt-5">
@@ -110,6 +100,55 @@ export default async function CuzdanPage() {
           Gerçek para kullanılmaz · yalnızca sanal tahmin
         </div>
       </section>
+
+      {/* Shortcuts sit directly under the balance, where a wallet's actions
+          are expected to be, and link to their own pages instead of pushing
+          the rest of the page down with an inline accordion. */}
+      <WalletQuickActions
+        actions={[
+          {
+            key: "gonder",
+            href: "/cuzdan/gonder",
+            label: "Gönder",
+            colorClass: "text-green",
+            bgClass: "bg-green/15",
+            icon: (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+                <path d="M4 12h13M13 6l6 6-6 6" />
+              </svg>
+            ),
+          },
+          {
+            key: "hediye",
+            href: "/cuzdan/hediye",
+            label: "Hediye",
+            colorClass: "text-gold",
+            bgClass: "bg-gold/15",
+            badge: unopenedGifts,
+            icon: (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+                <rect x="3" y="8" width="18" height="13" rx="2" />
+                <path d="M12 8v13M3 12h18M12 8s-1-4-4-4-2 4 4 4zM12 8s1-4 4-4 2 4-4 4z" />
+              </svg>
+            ),
+          },
+          {
+            key: "gecmis",
+            href: "/cuzdan/hareketler",
+            label: "Geçmiş",
+            colorClass: "text-ink-dim",
+            bgClass: "bg-ink-dim/10",
+            icon: (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 8v4l3 2" />
+              </svg>
+            ),
+          },
+        ]}
+      />
+
+      <GiftInbox received={receivedGifts} />
 
       <section className="rounded-2xl border border-card-border bg-card p-4">
         <div className="mb-3 flex items-center justify-between">
@@ -163,22 +202,18 @@ export default async function CuzdanPage() {
             Kasa kuralından önce yaptığın tahminler de bu toplama dahil. Gelecek Pazartesi&apos;den itibaren gerçek anlamda işleyecek.
           </p>
         )}
+
+        {/* The joker that doubles this kasa belongs to this card, not to a
+            separate perks drawer — it surfaces where it pays off. */}
+        <DoubleKasaCta
+          perks={perks}
+          cap={wallet.weeklyBudget.cap}
+          used={wallet.weeklyBudget.used}
+          overCap={budgetOverCap}
+        />
       </section>
 
-      <PerksPanel perks={perks} />
-
-      <TransferPanel
-        targets={transferTargets}
-        history={transferHistory.map((h) => ({ ...h, createdAt: h.createdAt.toISOString() }))}
-        available={wallet.available}
-      />
-
-      <GiftPanel
-        targets={transferTargets}
-        received={receivedGifts}
-        sent={sentGifts}
-        available={wallet.available}
-      />
+      <PerkStrip perks={perks} />
 
       <ActivityFeed items={activity} viewAllHref="/cuzdan/hareketler" />
 
