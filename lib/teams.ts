@@ -1,4 +1,4 @@
-export type TeamCode = "GS" | "FB" | "BJK";
+export type TeamCode = "GS" | "FB" | "BJK" | "TS";
 
 export const TEAM_META: Record<
   TeamCode,
@@ -28,12 +28,21 @@ export const TEAM_META: Record<
     logo: "/logos/besiktas.png",
     banner: "/teams/bjk-banner.jpg",
   },
+  TS: {
+    name: "Trabzonspor",
+    short: "TS",
+    color: "#7C1D2E",
+    ring: "#0C2340",
+    logo: "/logos/trabzonspor.png",
+    banner: "/teams/ts-banner.jpg",
+  },
 };
 
 export function teamCodeFromName(name: string): TeamCode | null {
   if (name.includes("Galatasaray")) return "GS";
   if (name.includes("Fenerbahçe")) return "FB";
   if (name.includes("Beşiktaş")) return "BJK";
+  if (name.includes("Trabzonspor")) return "TS";
   return null;
 }
 

@@ -22,6 +22,7 @@ const TEAMS: { code: TeamCode; color: string }[] = [
   { code: "GS", color: "#F5A623" },
   { code: "FB", color: "#F6C945" },
   { code: "BJK", color: "#E7E9EE" },
+  { code: "TS", color: "#7C1D2E" },
 ];
 
 export default function RegisterScreen() {

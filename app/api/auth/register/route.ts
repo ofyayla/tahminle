@@ -9,7 +9,7 @@ const schema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   displayName: z.string().min(2).max(40),
-  favoriteTeam: z.enum(["GS", "FB", "BJK"]).nullable().optional(),
+  favoriteTeam: z.enum(["GS", "FB", "BJK", "TS"]).nullable().optional(),
 });
 
 export async function POST(req: NextRequest) {

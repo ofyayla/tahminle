@@ -98,6 +98,50 @@ export type LeagueDetail = {
   season: LeaderboardScope;
 };
 
+export type LeagueActionResult = { ok: true } | { ok: false; error: string };
+
+// Any non-owner member can leave any time. The owner can't — the league
+// needs someone in charge, and "leave" isn't the tool for stepping down;
+// deleteLeague is (below). Deleting your own membership when you're the
+// owner would silently orphan the league (still listed to everyone else,
+// admin-less), which is worse than just refusing the action outright.
+export async function leaveLeague(userId: string, leagueId: string): Promise<LeagueActionResult> {
+  const league = await prisma.league.findUnique({ where: { id: leagueId }, select: { ownerId: true } });
+  if (!league) return { ok: false, error: "Lig bulunamadı." };
+  if (league.ownerId === userId) {
+    return { ok: false, error: "Lig sahibi ayrılamaz — ligi silebilirsin." };
+  }
+
+  await prisma.leagueMembership.deleteMany({ where: { leagueId, userId } });
+  return { ok: true };
+}
+
+// Owner-only: removes another member. Can't target the owner themselves
+// (that's not a real action — nothing to kick them from) or a non-member
+// (nothing to do).
+export async function kickMember(ownerId: string, leagueId: string, targetUserId: string): Promise<LeagueActionResult> {
+  const league = await prisma.league.findUnique({ where: { id: leagueId }, select: { ownerId: true } });
+  if (!league) return { ok: false, error: "Lig bulunamadı." };
+  if (league.ownerId !== ownerId) return { ok: false, error: "Bu işlem için lig sahibi olmalısın." };
+  if (targetUserId === ownerId) return { ok: false, error: "Kendini atamazsın." };
+
+  const removed = await prisma.leagueMembership.deleteMany({ where: { leagueId, userId: targetUserId } });
+  if (removed.count === 0) return { ok: false, error: "Bu kullanıcı ligin üyesi değil." };
+  return { ok: true };
+}
+
+// Owner-only: deletes the league outright. LeagueMembership rows cascade
+// (schema's onDelete: Cascade), so this is the one-step way to close a
+// league down — no separate "empty it out first" step needed.
+export async function deleteLeague(ownerId: string, leagueId: string): Promise<LeagueActionResult> {
+  const league = await prisma.league.findUnique({ where: { id: leagueId }, select: { ownerId: true } });
+  if (!league) return { ok: false, error: "Lig bulunamadı." };
+  if (league.ownerId !== ownerId) return { ok: false, error: "Bu işlem için lig sahibi olmalısın." };
+
+  await prisma.league.delete({ where: { id: leagueId } });
+  return { ok: true };
+}
+
 // Returns null if the league doesn't exist or the caller isn't a member —
 // callers treat that the same way (404), a league's roster/board is only
 // visible to people already in it.

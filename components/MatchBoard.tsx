@@ -25,7 +25,7 @@ export default function MatchBoard({
   if (matches.length === 0) {
     return (
       <div className="rounded-2xl border border-card-border bg-card p-6 text-center text-sm text-ink-dim">
-        Şu anda GS, FB veya BJK için yaklaşan maç bulunamadı. Oranlar birazdan yenilenecek.
+        Şu anda GS, FB, BJK veya TS için yaklaşan maç bulunamadı. Oranlar birazdan yenilenecek.
       </div>
     );
   }

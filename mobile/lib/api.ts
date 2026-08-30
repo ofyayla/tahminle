@@ -230,6 +230,16 @@ export const api = {
 
   getLeagueDetail: (id: string) => request<{ league: LeagueDetail }>(`/api/leagues/${id}`),
 
+  leaveLeague: (id: string) => request<{ ok: true }>(`/api/leagues/${id}/leave`, { method: "POST" }),
+
+  kickFromLeague: (id: string, userId: string) =>
+    request<{ ok: true }>(`/api/leagues/${id}/kick`, {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    }),
+
+  deleteLeague: (id: string) => request<{ ok: true }>(`/api/leagues/${id}`, { method: "DELETE" }),
+
   getArchive: () =>
     request<{
       weeklyChampions: WeeklyChampionEntry[];

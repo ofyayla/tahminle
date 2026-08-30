@@ -5,6 +5,7 @@ import * as Clipboard from "expo-clipboard";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ErrorBanner from "@/components/ErrorBanner";
 import LeaderboardBoard from "@/components/LeaderboardBoard";
+import LeagueAdminPanel from "@/components/LeagueAdminPanel";
 import { IconCheck, IconCirclePlus } from "@/components/icons";
 import { api, ApiError, type LeagueDetail } from "@/lib/api";
 import { colors, fonts, radii } from "@/lib/theme";
@@ -83,7 +84,16 @@ export default function LigDetayScreen() {
               </Pressable>
             </View>
 
-            <LeaderboardBoard week={league.week} season={league.season} />
+            <View style={{ marginBottom: 16 }}>
+              <LeaderboardBoard week={league.week} season={league.season} />
+            </View>
+
+            <LeagueAdminPanel
+              league={league}
+              onLeft={() => router.replace("/ligler")}
+              onDeleted={() => router.replace("/ligler")}
+              onChanged={load}
+            />
           </>
         )}
       </ScrollView>

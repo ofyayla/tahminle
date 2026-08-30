@@ -16,7 +16,7 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "Tahminle — Maç Günü Kontrol Odası",
   description:
-    "GS, FB ve BJK maçları için sanal bahis simülasyonu. Gerçek iddaa oranlarıyla sanal cüzdanını yönet.",
+    "GS, FB, BJK ve TS maçları için sanal bahis simülasyonu. Gerçek iddaa oranlarıyla sanal cüzdanını yönet.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -4,7 +4,7 @@ import { buildMatchKey, isSameFixture, isVirtualFixture } from "./matchKey";
 
 const BULLETIN_URL = "https://cdnbulten.nesine.com/api/bulten/getprebultenfull";
 
-export const TRACKED_TEAMS = ["Galatasaray", "Fenerbahçe", "Beşiktaş"];
+export const TRACKED_TEAMS = ["Galatasaray", "Fenerbahçe", "Beşiktaş", "Trabzonspor"];
 const MATCH_WINNER_MARKET = 1; // MTID for 1-X-2 (Maç Sonucu)
 
 type NesineOdd = { N: number; O: number };

@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
 import { colors, fonts, radii } from "@/lib/theme";
 
-const TEAMS: TeamCode[] = ["GS", "FB", "BJK"];
+const TEAMS: TeamCode[] = ["GS", "FB", "BJK", "TS"];
 
 // Shown once, to any signed-in account that has no club yet — which in
 // practice means everyone who came in through Google/Apple, since those

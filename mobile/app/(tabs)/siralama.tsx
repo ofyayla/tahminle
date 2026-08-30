@@ -21,6 +21,7 @@ const FILTERS: { code: TeamCode | "ALL"; label: string }[] = [
   { code: "GS", label: "GS" },
   { code: "FB", label: "FB" },
   { code: "BJK", label: "BJK" },
+  { code: "TS", label: "TS" },
 ];
 const SCOPES: { key: "week" | "season"; label: string }[] = [
   { key: "week", label: "Bu Hafta" },

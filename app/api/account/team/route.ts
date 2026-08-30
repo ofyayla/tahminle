@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth";
 
-const schema = z.object({ favoriteTeam: z.enum(["GS", "FB", "BJK"]) });
+const schema = z.object({ favoriteTeam: z.enum(["GS", "FB", "BJK", "TS"]) });
 
 // Set-once. A club is picked at sign-up and then fixed — but accounts created
 // through Google/Apple never went through the registration form, so they

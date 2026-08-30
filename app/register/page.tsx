@@ -9,6 +9,7 @@ const TEAMS = [
   { code: "GS", name: "Galatasaray", color: "#F5A623" },
   { code: "FB", name: "Fenerbahçe", color: "#F6C945" },
   { code: "BJK", name: "Beşiktaş", color: "#E7E9EE" },
+  { code: "TS", name: "Trabzonspor", color: "#7C1D2E" },
 ] as const;
 
 export default function RegisterPage() {

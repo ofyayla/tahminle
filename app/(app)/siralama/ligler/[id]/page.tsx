@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getLeagueDetail } from "@/lib/leagues";
 import LeaderboardBoard from "@/components/LeaderboardBoard";
 import CopyCodeButton from "@/components/CopyCodeButton";
+import LeagueAdminPanel from "@/components/LeagueAdminPanel";
 
 export default async function LeagueDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
@@ -42,6 +43,10 @@ export default async function LeagueDetailPage({ params }: { params: Promise<{ i
 
           <section>
             <LeaderboardBoard week={league.week} season={league.season} />
+          </section>
+
+          <section>
+            <LeagueAdminPanel league={league} />
           </section>
         </>
       )}
