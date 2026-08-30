@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { getCommunityFeed, getLeaderboard } from "@/lib/data";
 import { PER_MATCH_CAP, WEEKLY_BUDGET } from "@/lib/season";
@@ -22,6 +23,23 @@ export default async function SiralamaPage() {
         <p className="mt-2 text-sm text-ink-dim">
           Net kârına göre sıralanıyorsun. Bakiyen ne kadar büyük olursa olsun herkesin kasası aynı.
         </p>
+      </section>
+
+      <section className="grid grid-cols-2 gap-2">
+        <Link
+          href="/siralama/ligler"
+          className="flex items-center gap-2.5 rounded-2xl border border-card-border bg-card p-3.5 transition-colors hover:border-gold/40"
+        >
+          <span className="text-lg">👥</span>
+          <span className="text-xs font-bold">Arkadaş Ligleri</span>
+        </Link>
+        <Link
+          href="/siralama/arsiv"
+          className="flex items-center gap-2.5 rounded-2xl border border-card-border bg-card p-3.5 transition-colors hover:border-gold/40"
+        >
+          <span className="text-lg">🏆</span>
+          <span className="text-xs font-bold">Sezon Arşivi</span>
+        </Link>
       </section>
 
       <section>

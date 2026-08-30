@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { getCurrentUser } from "@/lib/auth";
 import { getLeaderboard } from "@/lib/data";
+import { getMyChampionCounts } from "@/lib/archive";
 import { formatMatchDate } from "@/lib/format";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
 import LogoutButton from "@/components/LogoutButton";
@@ -9,9 +10,10 @@ export default async function HesabimPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const { week } = await getLeaderboard(user.id);
+  const [{ week }, titles] = await Promise.all([getLeaderboard(user.id), getMyChampionCounts(user.id)]);
   const { you, totalPlayers } = week;
   const meta = user.favoriteTeam ? TEAM_META[user.favoriteTeam as TeamCode] : null;
+  const hasTitles = titles.weeklyCount > 0 || titles.seasonCount > 0;
 
   return (
     <div className="flex flex-col gap-5 px-4 pt-5">
@@ -50,6 +52,20 @@ export default async function HesabimPage() {
           {you && (
             <div className="mt-3 rounded-full border border-gold/40 bg-gold/10 px-3.5 py-1.5 text-xs font-bold text-gold">
               Sıralamada #{you.rank} · {totalPlayers} taraftar arasında
+            </div>
+          )}
+          {hasTitles && (
+            <div className="mt-2 flex flex-wrap justify-center gap-2">
+              {titles.seasonCount > 0 && (
+                <div className="rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-[11px] font-bold text-gold">
+                  🏆 {titles.seasonCount} sezon birincisi
+                </div>
+              )}
+              {titles.weeklyCount > 0 && (
+                <div className="rounded-full border border-card-border bg-bg-elevated px-3 py-1 text-[11px] font-bold text-ink-dim">
+                  🏆 {titles.weeklyCount} hafta birincisi
+                </div>
+              )}
             </div>
           )}
         </div>

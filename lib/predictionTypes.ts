@@ -15,6 +15,7 @@ export type PredictionDTO = {
   createdAt: string;
   settledAt: string | null;
   match: {
+    id: string;
     homeTeam: string;
     awayTeam: string;
     kickoff: string;

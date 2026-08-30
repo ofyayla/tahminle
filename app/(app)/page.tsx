@@ -1,6 +1,13 @@
 import Image from "next/image";
 import { getCurrentUser } from "@/lib/auth";
-import { getCommunityPulse, getLeaderboard, getMatchBudgets, getUpcomingMatches, getWalletSummary } from "@/lib/data";
+import {
+  getCommunityPulse,
+  getLeaderboard,
+  getMatchBudgets,
+  getUpcomingMatches,
+  getWalletSummary,
+  getWeeklyBankoStatus,
+} from "@/lib/data";
 import { formatTL, formatTime } from "@/lib/format";
 import MatchBoard from "@/components/MatchBoard";
 import BrandLogo from "@/components/BrandLogo";
@@ -18,7 +25,7 @@ export default async function MacGunuPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const [matches, wallet, leaderboard, openPredictions] = await Promise.all([
+  const [matches, wallet, leaderboard, openPredictions, weeklyBanko] = await Promise.all([
     getUpcomingMatches(),
     getWalletSummary(user.id),
     getLeaderboard(user.id),
@@ -26,6 +33,7 @@ export default async function MacGunuPage() {
       where: { userId: user.id, status: "open" },
       select: { matchId: true, market: true, choice: true },
     }),
+    getWeeklyBankoStatus(user.id),
   ]);
   const openByMatchId = new Map<string, Record<string, string>>();
   for (const p of openPredictions) {
@@ -186,7 +194,7 @@ export default async function MacGunuPage() {
           <span className="text-xs font-semibold text-ink-faint">{matchDTOs.length} maç</span>
         </div>
         <p className="mb-3 text-sm text-ink-dim">Kulübünün maçını seç, sanal tahminini kur.</p>
-        <MatchBoard matches={matchDTOs} available={wallet.available} />
+        <MatchBoard matches={matchDTOs} available={wallet.available} weeklyBanko={weeklyBanko} />
       </section>
 
       <div className="mx-auto flex items-center gap-2 rounded-full border border-card-border bg-card px-3 py-1.5 text-[11px] font-semibold text-ink-dim">

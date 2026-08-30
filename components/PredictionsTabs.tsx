@@ -3,13 +3,19 @@
 import { useState } from "react";
 import PredictionCard from "./PredictionCard";
 import type { PredictionDTO } from "@/lib/predictionTypes";
+import type { WeeklyBankoStatus } from "@/lib/data";
+import type { UserPerkStatus } from "@/lib/perks";
 
 export default function PredictionsTabs({
   open,
   settled,
+  weeklyBanko,
+  perks,
 }: {
   open: PredictionDTO[];
   settled: PredictionDTO[];
+  weeklyBanko: WeeklyBankoStatus;
+  perks: UserPerkStatus;
 }) {
   const [tab, setTab] = useState<"open" | "settled">("open");
   const list = tab === "open" ? open : settled;
@@ -49,7 +55,7 @@ export default function PredictionsTabs({
       ) : (
         <div className="space-y-3">
           {list.map((p) => (
-            <PredictionCard key={p.id} prediction={p} />
+            <PredictionCard key={p.id} prediction={p} weeklyBanko={weeklyBanko} perks={perks} />
           ))}
         </div>
       )}

@@ -40,6 +40,7 @@ export async function GET() {
     createdAt: p.createdAt.toISOString(),
     settledAt: p.settledAt ? p.settledAt.toISOString() : null,
     match: {
+      id: p.match.id,
       homeTeam: p.match.homeTeam,
       awayTeam: p.match.awayTeam,
       kickoff: p.match.kickoff.toISOString(),

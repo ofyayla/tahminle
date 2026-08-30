@@ -2,12 +2,14 @@ import { getCurrentUser } from "@/lib/auth";
 import { getRecentActivity, getWalletSummary, syncMatchState } from "@/lib/data";
 import { getTransferHistory, getTransferTargets } from "@/lib/transfers";
 import { getGiftsFor } from "@/lib/gifts";
+import { getUserPerkStatus } from "@/lib/perks";
 import { getChoiceLabel, getMarketName, type MarketCode } from "@/lib/markets";
 import { budgetSegments, formatTL } from "@/lib/format";
 import ActivityFeed from "@/components/ActivityFeed";
 import InfoAccordion from "@/components/InfoAccordion";
 import TransferPanel from "@/components/TransferPanel";
 import GiftPanel from "@/components/GiftPanel";
+import PerksPanel from "@/components/PerksPanel";
 
 // syncMatchState() can fall back to a headless-browser live-score scrape
 // (lib/liveScoreScraper.ts), which needs more than the default timeout.
@@ -18,12 +20,13 @@ export default async function CuzdanPage() {
   if (!user) return null;
 
   await syncMatchState();
-  const [wallet, activity, transferTargets, transferHistory, gifts] = await Promise.all([
+  const [wallet, activity, transferTargets, transferHistory, gifts, perks] = await Promise.all([
     getWalletSummary(user.id),
     getRecentActivity(user.id),
     getTransferTargets(user.id),
     getTransferHistory(user.id),
     getGiftsFor(user.id),
+    getUserPerkStatus(user.id),
   ]);
 
   // Unopened gifts must not leak their selection into the page payload, so
@@ -227,6 +230,8 @@ export default async function CuzdanPage() {
           </div>
         </div>
       </section>
+
+      <PerksPanel perks={perks} />
 
       <TransferPanel
         targets={transferTargets}

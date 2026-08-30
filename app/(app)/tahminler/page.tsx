@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
-import { getPerformanceStats, getPredictions, syncMatchState } from "@/lib/data";
+import { getPerformanceStats, getPredictions, getWeeklyBankoStatus, syncMatchState } from "@/lib/data";
+import { getUserPerkStatus } from "@/lib/perks";
 import { formatTL } from "@/lib/format";
 import PredictionsTabs from "@/components/PredictionsTabs";
 import type { PredictionDTO } from "@/lib/predictionTypes";
@@ -14,10 +15,12 @@ export default async function TahminlerPage() {
 
   await syncMatchState();
 
-  const [openRaw, settledRaw, stats] = await Promise.all([
+  const [openRaw, settledRaw, stats, weeklyBanko, perks] = await Promise.all([
     getPredictions(user.id, "open"),
     getPredictions(user.id, "settled"),
     getPerformanceStats(user.id),
+    getWeeklyBankoStatus(user.id),
+    getUserPerkStatus(user.id),
   ]);
 
   const toDTO = (p: (typeof openRaw)[number]): PredictionDTO => ({
@@ -33,6 +36,7 @@ export default async function TahminlerPage() {
     createdAt: p.createdAt.toISOString(),
     settledAt: p.settledAt ? p.settledAt.toISOString() : null,
     match: {
+      id: p.match.id,
       homeTeam: p.match.homeTeam,
       awayTeam: p.match.awayTeam,
       kickoff: p.match.kickoff.toISOString(),
@@ -89,7 +93,7 @@ export default async function TahminlerPage() {
         </div>
       </section>
 
-      <PredictionsTabs open={open} settled={settled} />
+      <PredictionsTabs open={open} settled={settled} weeklyBanko={weeklyBanko} perks={perks} />
     </div>
   );
 }

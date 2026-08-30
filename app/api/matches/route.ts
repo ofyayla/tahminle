@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { getSessionUserId } from "@/lib/auth";
-import { getCommunityPulse, getMatchBudgets, getUpcomingMatches, getWalletSummary } from "@/lib/data";
+import {
+  getCommunityPulse,
+  getMatchBudgets,
+  getUpcomingMatches,
+  getWalletSummary,
+  getWeeklyBankoStatus,
+} from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import type { MatchDTO } from "@/lib/types";
 
@@ -15,13 +21,14 @@ export async function GET() {
     return NextResponse.json({ error: "Giriş yapmalısın." }, { status: 401 });
   }
 
-  const [matches, wallet, openPredictions] = await Promise.all([
+  const [matches, wallet, openPredictions, weeklyBanko] = await Promise.all([
     getUpcomingMatches(),
     getWalletSummary(userId),
     prisma.prediction.findMany({
       where: { userId, status: "open" },
       select: { matchId: true, market: true, choice: true },
     }),
+    getWeeklyBankoStatus(userId),
   ]);
 
   const openByMatchId = new Map<string, Record<string, string>>();
@@ -68,5 +75,5 @@ export async function GET() {
     matchBudget: budgetsByMatchId.get(m.id)?.matchBudget ?? { cap: 0, used: 0, remaining: 0 },
   }));
 
-  return NextResponse.json({ matches: matchDTOs, available: wallet.available });
+  return NextResponse.json({ matches: matchDTOs, available: wallet.available, weeklyBanko });
 }

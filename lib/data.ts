@@ -54,6 +54,36 @@ export async function getMatchById(id: string) {
   return prisma.match.findUnique({ where: { id } });
 }
 
+export type WeeklyBankoStatus = {
+  predictionId: string;
+  matchId: string;
+  label: string;
+  locked: boolean;
+} | null;
+
+// The user's currently-assigned Banko for the current week, if any and if
+// still open — drives the bet-slip's toggle (is this pick already the
+// Banko, is it moveable, or is a different match's pick locked in instead).
+export async function getWeeklyBankoStatus(userId: string, now: Date = new Date()): Promise<WeeklyBankoStatus> {
+  const current = await prisma.prediction.findFirst({
+    where: {
+      userId,
+      isBanko: true,
+      status: "open",
+      match: { kickoff: { gte: weekStartFor(now), lt: weekEndFor(now) } },
+    },
+    select: { id: true, matchId: true, match: { select: { homeTeam: true, awayTeam: true, kickoff: true } } },
+  });
+  if (!current) return null;
+
+  return {
+    predictionId: current.id,
+    matchId: current.matchId,
+    label: `${current.match.homeTeam} – ${current.match.awayTeam}`,
+    locked: current.match.kickoff.getTime() <= now.getTime(),
+  };
+}
+
 export type Budget = { cap: number; used: number; remaining: number };
 
 function toBudget(cap: number, used: number): Budget {
