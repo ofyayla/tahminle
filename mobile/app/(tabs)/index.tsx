@@ -11,6 +11,7 @@ import ErrorBanner from "@/components/ErrorBanner";
 import { IconBell, IconChevronDown, IconPeople, IconTrendBars, IconWallet } from "@/components/icons";
 import InviteFriendsCard from "@/components/InviteFriendsCard";
 import { api } from "@/lib/api";
+import { peekMatchday, prefetchMatchday } from "@/lib/matchday";
 import { useScreenLoad } from "@/lib/useScreenLoad";
 import { countUnread, getNotificationsSeenAt } from "@/lib/notificationsSeen";
 import { getOddsFor, type MarketCode } from "@/lib/markets";
@@ -25,10 +26,15 @@ export default function MacGunuScreen() {
   const { user, rank, totalPlayers } = useAuth();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [matches, setMatches] = useState<MatchDTO[]>([]);
-  const [available, setAvailable] = useState(0);
-  const [weeklyBanko, setWeeklyBanko] = useState<WeeklyBankoStatus>(null);
-  const [wallet, setWallet] = useState({ openCount: 0, lockedInOpen: 0, potentialReturn: 0, total: 0 });
+  // Seeded from the boot-splash prefetch when it's still fresh, so the hero
+  // and match list paint on the first frame instead of flashing a spinner.
+  // load() below still runs to refresh and to pull in the non-critical extras.
+  const [matches, setMatches] = useState<MatchDTO[]>(() => peekMatchday()?.matches ?? []);
+  const [available, setAvailable] = useState(() => peekMatchday()?.available ?? 0);
+  const [weeklyBanko, setWeeklyBanko] = useState<WeeklyBankoStatus>(() => peekMatchday()?.weeklyBanko ?? null);
+  const [wallet, setWallet] = useState(
+    () => peekMatchday()?.wallet ?? { openCount: 0, lockedInOpen: 0, potentialReturn: 0, total: 0 }
+  );
   const [unread, setUnread] = useState(0);
   const [myLeagues, setMyLeagues] = useState<MyLeague[]>([]);
   // The "Arkadaşlarını Davet Et" teaser below the hero starts collapsed —
@@ -41,11 +47,11 @@ export default function MacGunuScreen() {
   const [selection, setSelection] = useState<{ match: MatchDTO; market: MarketCode; choice: string } | null>(null);
 
   const load = useCallback(async () => {
-    const [matchesData, walletData] = await Promise.all([api.getMatches(), api.getWallet()]);
-    setMatches(matchesData.matches);
-    setAvailable(matchesData.available);
-    setWeeklyBanko(matchesData.weeklyBanko);
-    setWallet(walletData.wallet);
+    const snap = await prefetchMatchday();
+    setMatches(snap.matches);
+    setAvailable(snap.available);
+    setWeeklyBanko(snap.weeklyBanko);
+    setWallet(snap.wallet);
 
     // Same treatment as the notification badge below: a nicety, never a
     // reason to take the whole screen down.
