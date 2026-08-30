@@ -1,12 +1,10 @@
 import { useCallback, useState } from "react";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import * as Clipboard from "expo-clipboard";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ErrorBanner from "@/components/ErrorBanner";
 import LeaderboardBoard from "@/components/LeaderboardBoard";
 import LeagueAdminPanel from "@/components/LeagueAdminPanel";
-import { IconCheck, IconCirclePlus } from "@/components/icons";
 import { api, ApiError, type LeagueDetail } from "@/lib/api";
 import { colors, fonts, radii } from "@/lib/theme";
 
@@ -16,7 +14,6 @@ export default function LigDetayScreen() {
   const [league, setLeague] = useState<LeagueDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -36,17 +33,6 @@ export default function LigDetayScreen() {
       load();
     }, [load])
   );
-
-  async function copyCode() {
-    if (!league) return;
-    try {
-      await Clipboard.setStringAsync(league.inviteCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Panoya erişilemediyse kod zaten ekranda görünür durumda.
-    }
-  }
 
   return (
     <SafeAreaView style={styles.flex} edges={["top"]}>
@@ -78,10 +64,12 @@ export default function LigDetayScreen() {
                 <Text style={{ fontFamily: fonts.bold, color: colors.ink }}>{league.memberCount}</Text> üye
                 {league.isOwner ? " · Sahibi sensin" : ""}
               </Text>
-              <Pressable style={styles.codeBtn} onPress={copyCode}>
-                <Text style={styles.codeText}>{league.inviteCode}</Text>
-                {copied ? <IconCheck size={14} color={colors.gold} /> : <IconCirclePlus size={14} color={colors.gold} />}
-              </Pressable>
+              <View style={styles.codeBox}>
+                <Text style={styles.codeText} selectable>
+                  {league.inviteCode}
+                </Text>
+                <Text style={styles.codeHint}>uzun bas, kopyala</Text>
+              </View>
             </View>
 
             <View style={{ marginBottom: 16 }}>
@@ -125,10 +113,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   metaText: { color: colors.inkDim, fontSize: 13, fontFamily: fonts.regular },
-  codeBtn: {
-    flexDirection: "row",
+  codeBox: {
     alignItems: "center",
-    gap: 8,
     borderWidth: 1,
     borderColor: `${colors.gold}66`,
     backgroundColor: `${colors.gold}1A`,
@@ -137,4 +123,5 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   codeText: { color: colors.gold, fontFamily: fonts.bold, fontSize: 13, letterSpacing: 2 },
+  codeHint: { color: colors.goldDim, fontSize: 9, fontFamily: fonts.regular, marginTop: 2 },
 });
