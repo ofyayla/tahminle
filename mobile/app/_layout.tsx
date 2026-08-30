@@ -56,6 +56,11 @@ function RootNavigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
+      {/* A friend-league invite link (tahminle://davet?code=...&ref=...) can
+          land here whether or not anyone's signed in yet — unlike every
+          other screen below, it isn't behind a Stack.Protected guard, so
+          it's always part of the navigator to redirect from. */}
+      <Stack.Screen name="davet" />
       {/* A signed-in account with no club can't use the app meaningfully —
           Maç Günü is built around one — and can no longer set it from
           Hesabım, so it goes through the one-time picker first. In practice

@@ -54,6 +54,10 @@ export type CurrentUser = {
   // Optional: an older deployed backend may not send this yet — treat
   // missing as "unknown", not "no password" (see hesabim.tsx).
   hasPassword?: boolean;
+  // Personal code this account's invite links are built from (lib/referrals.ts
+  // on the backend). Optional for the same reason hasPassword is — a client
+  // can briefly be ahead of an older cached backend response.
+  referralCode?: string;
 };
 
 // Mirrors lib/data.ts's LeaderboardRow — ranking is by net kâr, not balance.
@@ -80,7 +84,7 @@ export type LeaderboardScope = {
 // Mirrors lib/notifications.ts on the backend.
 export type NotificationItem = {
   id: string;
-  kind: "settled" | "gift" | "transfer";
+  kind: "settled" | "gift" | "transfer" | "league_joined";
   status: "won" | "lost" | "mixed" | "info";
   title: string;
   body: string;
@@ -139,9 +143,14 @@ export type UserPerkStatus = {
   insurance: { available: boolean; usedForPredictionId: string | null };
 };
 
-// Mirrors lib/leagues.ts's MyLeague/LeagueDetail.
+// Mirrors lib/leagues.ts's MyLeague/LeagueDetail/LeaguePreview.
 export type MyLeague = { id: string; name: string; inviteCode: string; memberCount: number; isOwner: boolean };
 export type LeagueDetail = MyLeague & { week: LeaderboardScope; season: LeaderboardScope };
+export type LeaguePreview = {
+  name: string;
+  memberCount: number;
+  sampleMembers: { displayName: string; favoriteTeam: TeamCode | null }[];
+};
 
 // Mirrors lib/archive.ts.
 export type WeeklyChampionEntry = { weekStart: string; displayName: string; favoriteTeam: TeamCode | null; net: number; bonus: number };
@@ -155,11 +164,29 @@ export const api = {
       { method: "POST", body: JSON.stringify({ email, password }) }
     ),
 
-  register: (email: string, password: string, displayName: string, favoriteTeam: TeamCode | null) =>
-    request<{ ok: true; token: string; user: { id: string; email: string; displayName: string } }>(
-      "/api/auth/register",
-      { method: "POST", body: JSON.stringify({ email, password, displayName, favoriteTeam }) }
-    ),
+  register: (
+    email: string,
+    password: string,
+    displayName: string,
+    favoriteTeam: TeamCode | null,
+    invite?: { inviteCode: string; ref: string | null } | null
+  ) =>
+    request<{
+      ok: true;
+      token: string;
+      user: { id: string; email: string; displayName: string };
+      leagueJoined: { leagueId: string; rewardGranted: boolean } | null;
+    }>("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        email,
+        password,
+        displayName,
+        favoriteTeam,
+        inviteCode: invite?.inviteCode ?? null,
+        ref: invite?.ref ?? null,
+      }),
+    }),
 
   logout: () => request<{ ok: true }>("/api/auth/logout", { method: "POST" }),
 
@@ -265,13 +292,20 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
 
-  joinLeague: (code: string) =>
+  joinLeague: (code: string, ref?: string | null) =>
     request<{ ok: true; leagueId: string }>("/api/leagues/join", {
       method: "POST",
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code, ref: ref ?? null }),
     }),
 
   getLeagueDetail: (id: string) => request<{ league: LeagueDetail }>(`/api/leagues/${id}`),
+
+  // Unauthenticated on the backend, but still routed through `request` (a
+  // signed-in device just sends its token along for nothing) — this is what
+  // the deep-linked register screen calls to show "X ligine katılıyorsun"
+  // before the account even exists yet.
+  getLeaguePreview: (code: string) =>
+    request<{ league: LeaguePreview }>(`/api/leagues/preview/${encodeURIComponent(code)}`),
 
   leaveLeague: (id: string) => request<{ ok: true }>(`/api/leagues/${id}/leave`, { method: "POST" }),
 

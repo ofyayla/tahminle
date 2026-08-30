@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import BrandLogo from "@/components/BrandLogo";
@@ -9,14 +9,45 @@ import { TEAM_META, type TeamCode } from "@/lib/teams";
 
 const TEAM_CODES: TeamCode[] = ["GS", "FB", "BJK", "TS"];
 
+type LeaguePreview = { name: string; memberCount: number };
+
+// useSearchParams needs a Suspense boundary above it (Next.js bails the
+// subtree to client-only rendering otherwise) — RegisterForm carries the
+// hook, this wrapper is just the boundary.
 export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
+function RegisterForm() {
   const router = useRouter();
+  const search = useSearchParams();
+  // Present when this page was reached through a friend-league invite link
+  // (app/lig/[code]'s "Web'de Devam Et" button) rather than the plain
+  // sign-up nav link.
+  const invite = search.get("invite");
+  const ref = search.get("ref");
+
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [favoriteTeam, setFavoriteTeam] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [preview, setPreview] = useState<LeaguePreview | null>(null);
+
+  useEffect(() => {
+    if (!invite) return;
+    // A stale/bad code just means no banner — the invite is still passed
+    // through to the register call below, which fails exactly as softly.
+    fetch(`/api/leagues/preview/${encodeURIComponent(invite)}`)
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data) => setPreview(data.league))
+      .catch(() => {});
+  }, [invite]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,7 +57,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ displayName, email, password, favoriteTeam }),
+        body: JSON.stringify({ displayName, email, password, favoriteTeam, inviteCode: invite, ref }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -48,6 +79,26 @@ export default function RegisterPage() {
           <h1 className="font-display text-2xl tracking-tight">HESAP AÇ</h1>
           <p className="mt-2 text-sm text-ink-dim">₺1.000 sanal bakiye ile maç günü başlasın.</p>
         </div>
+
+        {invite && (
+          <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-gold/40 bg-gold/10 p-3">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mt-0.5 h-4 w-4 flex-shrink-0 text-gold">
+              <path d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m5-2.13a4 4 0 100-8 4 4 0 000 8zm6 0a4 4 0 100-8" />
+            </svg>
+            <div>
+              <p className="text-sm font-bold">
+                {preview ? `"${preview.name}" ligine katılıyorsun` : "Bir arkadaş ligine katılıyorsun"}
+              </p>
+              <p className="mt-1 text-xs text-ink-dim">
+                {preview
+                  ? `${preview.memberCount} taraftar arasına sen de gireceksin${
+                      ref ? " — seni davet eden arkadaşınla ikinize de ₺100 bonus" : ""
+                    }.`
+                  : "Hesabını oluştur, otomatik katılacaksın."}
+              </p>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-card-border bg-card p-5">
           <div>

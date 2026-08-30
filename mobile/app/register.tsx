@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -11,30 +11,50 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Link } from "expo-router";
+import { Link, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/lib/auth-context";
-import { ApiError } from "@/lib/api";
+import { api, ApiError, type LeaguePreview } from "@/lib/api";
 import { colors, fonts, radii } from "@/lib/theme";
 import BrandLogo from "@/components/BrandLogo";
 import SocialAuthButtons from "@/components/SocialAuthButtons";
+import { IconPeople } from "@/components/icons";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
 
 const TEAM_CODES: TeamCode[] = ["GS", "FB", "BJK", "TS"];
 
 export default function RegisterScreen() {
   const { register } = useAuth();
+  // Present when this screen was reached through a friend-league invite link
+  // (mobile/app/davet.tsx redirects here with them attached) rather than the
+  // normal tab-bar sign-up path.
+  const { invite, ref } = useLocalSearchParams<{ invite?: string; ref?: string }>();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [favoriteTeam, setFavoriteTeam] = useState<TeamCode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [preview, setPreview] = useState<LeaguePreview | null>(null);
+
+  useEffect(() => {
+    if (!invite) return;
+    // A stale/bad code just means no banner shows — the invite is still
+    // passed through to register() below, which fails exactly as softly on
+    // the backend.
+    api.getLeaguePreview(invite).then((res) => setPreview(res.league)).catch(() => {});
+  }, [invite]);
 
   const onSubmit = async () => {
     setError(null);
     setSubmitting(true);
     try {
-      await register(email.trim(), password, displayName.trim(), favoriteTeam);
+      await register(
+        email.trim(),
+        password,
+        displayName.trim(),
+        favoriteTeam,
+        invite ? { inviteCode: invite, ref: ref ?? null } : null
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Kayıt başarısız.");
     } finally {
@@ -50,6 +70,26 @@ export default function RegisterScreen() {
           <Text style={styles.title}>HESAP AÇ</Text>
           <Text style={styles.subtitle}>₺1.000 sanal bakiye ile maç günü başlasın.</Text>
         </View>
+
+        {invite && (
+          <View style={styles.inviteBanner}>
+            <View style={styles.inviteIconWrap}>
+              <IconPeople size={16} color={colors.gold} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.inviteBannerTitle}>
+                {preview ? `"${preview.name}" ligine katılıyorsun` : "Bir arkadaş ligine katılıyorsun"}
+              </Text>
+              <Text style={styles.inviteBannerNote}>
+                {preview
+                  ? `${preview.memberCount} taraftar arasına sen de gireceksin${
+                      ref ? " — seni davet eden arkadaşınla ikinize de ₺100 bonus" : ""
+                    }.`
+                  : "Hesabını oluştur, otomatik katılacaksın."}
+              </Text>
+            </View>
+          </View>
+        )}
 
         <View style={styles.form}>
           <View>
@@ -138,6 +178,20 @@ const styles = StyleSheet.create({
   header: { alignItems: "center", marginBottom: 32 },
   title: { color: colors.ink, fontSize: 22, fontFamily: fonts.display, marginTop: 10 },
   subtitle: { color: colors.inkDim, fontSize: 14, fontFamily: fonts.regular, marginTop: 8, textAlign: "center" },
+  inviteBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: `${colors.gold}59`,
+    backgroundColor: `${colors.gold}14`,
+    padding: 12,
+    marginBottom: 16,
+  },
+  inviteIconWrap: { width: 28, height: 28, borderRadius: 14, backgroundColor: `${colors.gold}26`, alignItems: "center", justifyContent: "center", marginTop: 1 },
+  inviteBannerTitle: { color: colors.ink, fontSize: 13, fontFamily: fonts.bold },
+  inviteBannerNote: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular, marginTop: 3, lineHeight: 15 },
   form: {
     gap: 16,
     borderRadius: radii["2xl"],

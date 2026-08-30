@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/auth";
 import { OAuthError, verifyIdentityToken } from "@/lib/oauth";
 import { STARTING_BALANCE, seasonStartFor, weekStartFor } from "@/lib/season";
+import { generateUniqueReferralCode } from "@/lib/referrals";
 
 const schema = z.object({
   provider: z.enum(["google", "apple"]),
@@ -114,6 +115,7 @@ export async function POST(req: NextRequest) {
       // brand-new account for one "overdue" for a reset/top-up.
       weekAnchor: weekStartFor(now),
       seasonAnchor: seasonStartFor(now),
+      referralCode: await generateUniqueReferralCode(),
       oauthAccounts: {
         create: { provider: identity.provider, providerUserId: identity.providerUserId },
       },

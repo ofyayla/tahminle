@@ -1,18 +1,23 @@
 import { useCallback, useState } from "react";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ErrorBanner from "@/components/ErrorBanner";
 import { IconArrowRight } from "@/components/icons";
 import { api, ApiError, type MyLeague } from "@/lib/api";
+import { parseInviteInput } from "@/lib/referral";
 import { colors, fonts, radii } from "@/lib/theme";
 
 export default function LiglerScreen() {
   const router = useRouter();
+  // InviteFriendsCard's "Lig Kur" CTA links here with ?mode=create so the
+  // create form is already open — a zero-league account has nothing to join
+  // and nothing to pick between, so skip straight past the create/join choice.
+  const { mode: initialMode } = useLocalSearchParams<{ mode?: "create" | "join" }>();
   const [leagues, setLeagues] = useState<MyLeague[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"create" | "join" | null>(null);
+  const [mode, setMode] = useState<"create" | "join" | null>(initialMode ?? null);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -61,7 +66,9 @@ export default function LiglerScreen() {
     }
     setBusy(true);
     try {
-      const res = await api.joinLeague(code);
+      // The field also accepts a pasted share link, not just the bare code.
+      const { code: parsedCode, ref } = parseInviteInput(code);
+      const res = await api.joinLeague(parsedCode, ref);
       router.push({ pathname: "/lig", params: { id: res.leagueId } });
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Lige katılamadın.");
@@ -91,6 +98,7 @@ export default function LiglerScreen() {
         ) : leagues.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.empty}>Henüz bir lige katılmadın.</Text>
+            <Text style={styles.emptySub}>Bir lig kur ya da bir davet koduyla katıl — aşağıdan başla.</Text>
           </View>
         ) : (
           <View style={{ gap: 8, marginBottom: 20 }}>
@@ -140,13 +148,14 @@ export default function LiglerScreen() {
               />
             ) : (
               <TextInput
-                style={[styles.input, { textTransform: "uppercase" }]}
+                style={styles.input}
                 value={code}
-                onChangeText={(t) => setCode(t.toUpperCase())}
-                placeholder="Örn. AB12CD"
+                onChangeText={(t) => setCode(t.includes("://") ? t : t.toUpperCase())}
+                placeholder="Kod ya da davet linki"
                 placeholderTextColor={colors.inkFaint}
-                maxLength={20}
-                autoCapitalize="characters"
+                maxLength={200}
+                autoCapitalize="none"
+                autoCorrect={false}
               />
             )}
             {formError && <Text style={styles.formError}>{formError}</Text>}
@@ -171,6 +180,7 @@ const styles = StyleSheet.create({
   pageSub: { color: colors.inkDim, fontSize: 13, fontFamily: fonts.regular, marginBottom: 16 },
   emptyCard: { borderRadius: radii["2xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 24, marginBottom: 20 },
   empty: { textAlign: "center", color: colors.inkDim, fontSize: 13, fontFamily: fonts.regular },
+  emptySub: { textAlign: "center", color: colors.inkFaint, fontSize: 12, fontFamily: fonts.regular, marginTop: 6 },
   leagueRow: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: radii["2xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 16 },
   leagueName: { color: colors.ink, fontFamily: fonts.bold, fontSize: 13 },
   leagueSub: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular, marginTop: 3 },

@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getLeagueDetail } from "@/lib/leagues";
 import LeaderboardBoard from "@/components/LeaderboardBoard";
 import CopyCodeButton from "@/components/CopyCodeButton";
+import ShareInviteButton from "@/components/ShareInviteButton";
 import LeagueAdminPanel from "@/components/LeagueAdminPanel";
 
 export default async function LeagueDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -38,8 +39,15 @@ export default async function LeagueDetailPage({ params }: { params: Promise<{ i
               <span className="font-bold text-ink">{league.memberCount}</span> üye
               {league.isOwner && <span> · Sahibi sensin</span>}
             </div>
-            <CopyCodeButton code={league.inviteCode} />
+            <div className="flex items-center gap-2">
+              <CopyCodeButton code={league.inviteCode} />
+              <ShareInviteButton leagueName={league.name} inviteCode={league.inviteCode} referralCode={user.referralCode} />
+            </div>
           </section>
+
+          <p className="-mt-2 rounded-xl border border-gold/30 bg-gold/10 px-3 py-2 text-xs text-gold">
+            Kendi linkinle katılan arkadaşınla ikinize de <span className="font-bold">₺100 bonus</span>.
+          </p>
 
           <section>
             <LeaderboardBoard week={league.week} season={league.season} />

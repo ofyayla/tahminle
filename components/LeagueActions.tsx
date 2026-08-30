@@ -3,9 +3,25 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function LeagueActions() {
+// Pulls a bare code back out of either a raw code or a pasted share link
+// (…/lig/CODE?ref=REF) — mirrors mobile/lib/referral.ts's parseInviteInput.
+function parseInviteInput(raw: string): { code: string; ref: string | null } {
+  const trimmed = raw.trim();
+  if (trimmed.includes("://")) {
+    try {
+      const url = new URL(trimmed);
+      const segments = url.pathname.split("/").filter(Boolean);
+      return { code: (segments[segments.length - 1] ?? "").toUpperCase(), ref: url.searchParams.get("ref") };
+    } catch {
+      // Not actually parseable despite the "://" — fall through.
+    }
+  }
+  return { code: trimmed.toUpperCase(), ref: null };
+}
+
+export default function LeagueActions({ initialMode = null }: { initialMode?: "create" | "join" | null }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"create" | "join" | null>(null);
+  const [mode, setMode] = useState<"create" | "join" | null>(initialMode);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,10 +59,11 @@ export default function LeagueActions() {
     }
     setLoading(true);
     try {
+      const parsed = parseInviteInput(code);
       const res = await fetch("/api/leagues/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code: parsed.code, ref: parsed.ref }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -102,10 +119,10 @@ export default function LeagueActions() {
         <input
           type="text"
           value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-          placeholder="Örn. AB12CD"
-          maxLength={20}
-          className="mb-3 w-full rounded-xl border border-card-border bg-bg-elevated px-3.5 py-3 text-sm uppercase tracking-wider outline-none focus:border-gold"
+          onChange={(e) => setCode(e.target.value.includes("://") ? e.target.value : e.target.value.toUpperCase())}
+          placeholder="Kod ya da davet linki"
+          maxLength={200}
+          className="mb-3 w-full rounded-xl border border-card-border bg-bg-elevated px-3.5 py-3 text-sm outline-none focus:border-gold"
         />
       )}
 

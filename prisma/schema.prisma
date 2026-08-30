@@ -24,6 +24,12 @@ model User {
   startBalance Int      @default(1000)
   createdAt    DateTime @default(now())
 
+  // A personal, stable code every user carries (independent of any one
+  // league's inviteCode) so a share link can credit the specific person who
+  // sent it, not just whoever owns the league. Backfilled for pre-existing
+  // rows by the migration that introduces this column.
+  referralCode String   @unique
+
   // Bookkeeping for lib/season.ts's applyPeriodicAdjustments: the week/season
   // start this user was last checked/reset for. Null until the first tick
   // after SEASON_ONE_START touches them — that's what lets a single nullable
@@ -44,7 +50,8 @@ model User {
   seasonChampionships SeasonChampion[]
   seasonPerks         SeasonPerk[]
   ownedLeagues        League[]           @relation("LeagueOwner")
-  leagueMemberships   LeagueMembership[]
+  leagueMemberships   LeagueMembership[] @relation("LeagueMemberUser")
+  referralsCredited   LeagueMembership[] @relation("LeagueMemberInvitedBy")
 }
 
 // A third-party identity linked to a user (Google, Apple). Kept as its own
@@ -310,9 +317,22 @@ model LeagueMembership {
   userId   String
   joinedAt DateTime @default(now())
 
-  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id])
+  // Who gets credit for this join — the member whose personal share link was
+  // used, falling back to the league owner when a code was typed in directly
+  // with no ref attached. Null for the owner's own founding membership (no
+  // one invited them) and for pre-existing rows from before referrals
+  // existed. SetNull rather than cascading: the inviter leaving/being kicked
+  // shouldn't delete the invitee's own membership.
+  invitedById String?
+  // One-time reward (lib/referrals.ts) paid out for this join, so a retry or
+  // a page reload can never pay it twice.
+  rewardGranted Boolean @default(false)
+
+  league    League  @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  user      User    @relation("LeagueMemberUser", fields: [userId], references: [id])
+  invitedBy User?   @relation("LeagueMemberInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
 
   @@unique([leagueId, userId])
   @@index([userId])
+  @@index([invitedById])
 }

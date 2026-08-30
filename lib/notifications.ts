@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { formatTL } from "./format";
+import { REFERRAL_BONUS } from "./referrals";
 
 // The in-app notification centre is derived from rows that already exist —
 // settled predictions, received gifts, received transfers — rather than a
@@ -9,7 +10,7 @@ import { formatTL } from "./format";
 
 export type NotificationItem = {
   id: string;
-  kind: "settled" | "gift" | "transfer";
+  kind: "settled" | "gift" | "transfer" | "league_joined";
   status: "won" | "lost" | "mixed" | "info";
   title: string;
   body: string;
@@ -21,7 +22,7 @@ export type NotificationItem = {
 const FEED_LIMIT = 40;
 
 export async function getNotifications(userId: string): Promise<NotificationItem[]> {
-  const [settled, gifts, transfers] = await Promise.all([
+  const [settled, gifts, transfers, referredJoins] = await Promise.all([
     prisma.prediction.findMany({
       where: { userId, status: { in: ["won", "lost"] }, settledAt: { not: null } },
       include: {
@@ -41,6 +42,14 @@ export async function getNotifications(userId: string): Promise<NotificationItem
       where: { recipientId: userId },
       include: { sender: { select: { displayName: true } } },
       orderBy: { createdAt: "desc" },
+      take: FEED_LIMIT,
+    }),
+    // Friends this user personally brought in — via their own share link,
+    // not just anyone who typed the league's code in.
+    prisma.leagueMembership.findMany({
+      where: { invitedById: userId },
+      include: { user: { select: { displayName: true } }, league: { select: { name: true } } },
+      orderBy: { joinedAt: "desc" },
       take: FEED_LIMIT,
     }),
   ]);
@@ -140,6 +149,20 @@ export async function getNotifications(userId: string): Promise<NotificationItem
       }`,
       amount: t.amount,
       at: t.createdAt.toISOString(),
+    });
+  }
+
+  for (const j of referredJoins) {
+    items.push({
+      id: `league-joined-${j.id}`,
+      kind: "league_joined",
+      status: "info",
+      title: "Davetin işe yaradı 🎉",
+      body: j.rewardGranted
+        ? `${j.user.displayName}, "${j.league.name}" ligine senin davetinle katıldı — ikinize de ${formatTL(REFERRAL_BONUS)} bakiye eklendi.`
+        : `${j.user.displayName}, "${j.league.name}" ligine senin davetinle katıldı.`,
+      amount: j.rewardGranted ? REFERRAL_BONUS : null,
+      at: j.joinedAt.toISOString(),
     });
   }
 

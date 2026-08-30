@@ -21,10 +21,18 @@ const BG: Record<NotificationItem["status"], string> = {
 function kickerFor(item: NotificationItem): string {
   if (item.kind === "gift") return "HEDİYE";
   if (item.kind === "transfer") return "TRANSFER";
+  if (item.kind === "league_joined") return "ARKADAŞ LİGİ";
   return "SONUÇ İŞLENDİ";
 }
 
 function Icon({ item }: { item: NotificationItem }) {
+  if (item.kind === "league_joined") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+        <path d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m5-2.13a4 4 0 100-8 4 4 0 000 8zm6 0a4 4 0 100-8" />
+      </svg>
+    );
+  }
   if (item.kind === "gift") {
     return (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">

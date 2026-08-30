@@ -104,6 +104,8 @@ export function routeForNotification(data: unknown): string | null {
     case "gift":
     case "transfer":
       return "/(tabs)/cuzdan";
+    case "league_joined":
+      return "/ligler";
     default:
       return null;
   }

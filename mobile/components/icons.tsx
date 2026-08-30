@@ -234,3 +234,32 @@ export function IconPencil({ size, color = "currentColor" }: IconProps) {
     </Svg>
   );
 }
+
+export function IconShare({ size, color = "currentColor" }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Path d="M12 15V3M8 7l4-4 4 4" {...stroke(color)} />
+      <Path d="M4 13v6a2 2 0 002 2h12a2 2 0 002-2v-6" {...stroke(color)} />
+    </Svg>
+  );
+}
+
+// A recognizable-enough WhatsApp glyph (rounded speech bubble + handset)
+// rendered with this file's stroke style rather than the brand's own filled
+// mark — this file is line icons throughout, and it only ever sits next to
+// them.
+export function IconWhatsapp({ size, color = "currentColor" }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Path
+        d="M12 3a9 9 0 00-7.75 13.5L3 21l4.65-1.22A9 9 0 1012 3z"
+        {...stroke(color)}
+      />
+      <Path
+        d="M8.5 9.5c0 4 3 6.5 6.5 6.5.7 0 1-.5.8-1.2l-.4-1.3a.9.9 0 00-1-.6l-1.1.2a4.6 4.6 0 01-2.6-2.6l.2-1.1a.9.9 0 00-.6-1l-1.3-.4c-.7-.2-1.2.1-1.2.8z"
+        fill={color}
+        stroke="none"
+      />
+    </Svg>
+  );
+}

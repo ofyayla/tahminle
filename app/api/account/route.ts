@@ -24,6 +24,7 @@ export async function GET() {
       balance: user.balance,
       startBalance: user.startBalance,
       createdAt: user.createdAt.toISOString(),
+      referralCode: user.referralCode,
       // The client never sees passwordHash itself — just whether one exists,
       // so it knows whether to show a password-change form (OAuth-only
       // accounts have none).

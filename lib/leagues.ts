@@ -1,8 +1,13 @@
 import { prisma } from "./prisma";
 import { getLeaderboard, type LeaderboardScope } from "./data";
+import { grantReferralReward, REFERRAL_BONUS } from "./referrals";
+import { sendPushToUsers } from "./push";
+import { formatTL } from "./format";
 
 export type LeagueResult = { ok: true; leagueId: string; inviteCode: string } | { ok: false; error: string };
-export type JoinResult = { ok: true; leagueId: string } | { ok: false; error: string };
+// JoinResult itself is defined further down, next to joinLeague — it grew a
+// couple more fields (membershipId, created, invitedById) once referrals
+// needed to know whether a join actually happened just now.
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I — easy to read aloud/type
 const CODE_LENGTH = 6;
@@ -46,7 +51,50 @@ export async function createLeague(ownerId: string, name: string): Promise<Leagu
   return { ok: false, error: "Lig oluşturulamadı, tekrar dener misin?" };
 }
 
-export async function joinLeague(userId: string, inviteCode: string): Promise<JoinResult> {
+// Resolves a personal referral code (User.referralCode, see lib/referrals.ts)
+// to the id of the specific member who shared it — but only if they're
+// actually a member of *this* league. A code copy-pasted into the wrong
+// league's join flow, or one that's simply invalid, resolves to null rather
+// than erroring: attribution is a nice-to-have, never a reason to block a
+// join.
+async function resolveReferrer(leagueId: string, referralCode: string | null | undefined): Promise<string | null> {
+  const code = referralCode?.trim().toUpperCase();
+  if (!code) return null;
+
+  const referrer = await prisma.user.findUnique({ where: { referralCode: code }, select: { id: true } });
+  if (!referrer) return null;
+
+  const membership = await prisma.leagueMembership.findUnique({
+    where: { leagueId_userId: { leagueId, userId: referrer.id } },
+    select: { userId: true },
+  });
+  return membership ? referrer.id : null;
+}
+
+export type JoinOutcome = {
+  ok: true;
+  leagueId: string;
+  membershipId: string;
+  // Whether this call actually created the membership — false when the user
+  // was already in the league (join is idempotent from their point of view).
+  // Callers use this to decide whether a referral reward is even in play;
+  // rejoining an existing league never pays out again.
+  created: boolean;
+  invitedById: string | null;
+};
+export type JoinResult = JoinOutcome | { ok: false; error: string };
+
+// `referralCode` is the joiner's own personal code (lib/referrals.ts), not
+// the league's inviteCode — passed through from a share link's `?ref=` param
+// when the joiner arrived via one. Reward-granting is the caller's job (see
+// app/api/auth/register/route.ts): this only resolves and records who gets
+// credit, since not every joinLeague call is a new-user acquisition worth
+// rewarding.
+export async function joinLeague(
+  userId: string,
+  inviteCode: string,
+  referralCode?: string | null
+): Promise<JoinResult> {
   const league = await prisma.league.findUnique({
     where: { inviteCode: inviteCode.trim().toUpperCase() },
     select: { id: true },
@@ -55,15 +103,114 @@ export async function joinLeague(userId: string, inviteCode: string): Promise<Jo
     return { ok: false, error: "Bu davet koduyla bir lig bulunamadı." };
   }
 
+  const invitedById = await resolveReferrer(league.id, referralCode);
+
   try {
-    await prisma.leagueMembership.create({ data: { leagueId: league.id, userId } });
-    return { ok: true, leagueId: league.id };
+    const membership = await prisma.leagueMembership.create({
+      data: { leagueId: league.id, userId, invitedById },
+    });
+    return { ok: true, leagueId: league.id, membershipId: membership.id, created: true, invitedById };
   } catch (err) {
     if (err instanceof Error && "code" in err && (err as { code?: string }).code === "P2002") {
-      return { ok: true, leagueId: league.id }; // already a member — join is idempotent from the user's view
+      // Already a member — join is idempotent from the user's view, and no
+      // reward can fire for a membership that already existed.
+      const existing = await prisma.leagueMembership.findUnique({
+        where: { leagueId_userId: { leagueId: league.id, userId } },
+        select: { id: true },
+      });
+      return { ok: true, leagueId: league.id, membershipId: existing?.id ?? "", created: false, invitedById: null };
     }
     throw err;
   }
+}
+
+// Joins a brand-new account to a league at the moment of registration, and
+// pays out the referral bonus (lib/referrals.ts) when the invite carried a
+// resolvable personal ref code. Membership creation and both balance credits
+// happen in one transaction, so a crash between them can never leave a
+// half-paid reward; the push to the referrer is a side effect that runs
+// after the transaction commits, same as every other push in the app.
+//
+// A bad or expired invite code fails softly (`ok: false`) rather than
+// throwing — the caller's job is to let registration itself succeed either
+// way, since a typo'd code is not a reason to lose the whole signup.
+export async function joinLeagueForNewUser(
+  newUserId: string,
+  inviteCode: string,
+  referralCode?: string | null
+): Promise<{ ok: true; leagueId: string; rewardGranted: boolean } | { ok: false; error: string }> {
+  const league = await prisma.league.findUnique({
+    where: { inviteCode: inviteCode.trim().toUpperCase() },
+    select: { id: true },
+  });
+  if (!league) {
+    return { ok: false, error: "Bu davet koduyla bir lig bulunamadı." };
+  }
+
+  const invitedById = await resolveReferrer(league.id, referralCode);
+
+  const { rewardGranted } = await prisma.$transaction(async (tx) => {
+    const membership = await tx.leagueMembership.create({
+      data: { leagueId: league.id, userId: newUserId, invitedById },
+    });
+    if (!invitedById) return { rewardGranted: false };
+    const granted = await grantReferralReward(tx, {
+      membershipId: membership.id,
+      referrerId: invitedById,
+      newUserId,
+    });
+    return { rewardGranted: granted };
+  });
+
+  if (rewardGranted && invitedById) {
+    const newUser = await prisma.user.findUnique({ where: { id: newUserId }, select: { displayName: true } });
+    await sendPushToUsers([invitedById], {
+      title: "🎉 Davetin işe yaradı!",
+      body: `${newUser?.displayName ?? "Bir taraftar"} senin davetinle katıldı — ikinize de ${formatTL(
+        REFERRAL_BONUS
+      )} bakiye eklendi.`,
+      data: { type: "league_joined", leagueId: league.id },
+    });
+  }
+
+  return { ok: true, leagueId: league.id, rewardGranted };
+}
+
+export type LeaguePreview = {
+  name: string;
+  memberCount: number;
+  // First few members, oldest-joined first, so an unauthenticated visitor
+  // landing on a share link sees who's actually in it before deciding to
+  // sign up — no email, no balance, nothing beyond what's already public
+  // inside the app to any other member.
+  sampleMembers: { displayName: string; favoriteTeam: string | null }[];
+};
+
+const PREVIEW_SAMPLE_SIZE = 3;
+
+// Public, unauthenticated lookup for the web smart-link landing page
+// (app/lig/[code]) — deliberately a much narrower cut of League than
+// getLeagueDetail, since this runs before the visitor has any account at all.
+export async function getLeaguePreview(inviteCode: string): Promise<LeaguePreview | null> {
+  const league = await prisma.league.findUnique({
+    where: { inviteCode: inviteCode.trim().toUpperCase() },
+    select: {
+      name: true,
+      _count: { select: { members: true } },
+      members: {
+        select: { user: { select: { displayName: true, favoriteTeam: true } } },
+        orderBy: { joinedAt: "asc" },
+        take: PREVIEW_SAMPLE_SIZE,
+      },
+    },
+  });
+  if (!league) return null;
+
+  return {
+    name: league.name,
+    memberCount: league._count.members,
+    sampleMembers: league.members.map((m) => m.user),
+  };
 }
 
 export type MyLeague = { id: string; name: string; inviteCode: string; memberCount: number; isOwner: boolean };

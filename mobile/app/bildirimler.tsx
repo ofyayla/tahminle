@@ -8,7 +8,7 @@ import { useScreenLoad } from "@/lib/useScreenLoad";
 import { markNotificationsSeen } from "@/lib/notificationsSeen";
 import { formatMatchDate, formatTime, formatTL } from "@/lib/format";
 import { colors, fonts, radii } from "@/lib/theme";
-import { IconCheck, IconChevronDown, IconGift, IconTrophy, IconWallet, IconX } from "@/components/icons";
+import { IconCheck, IconChevronDown, IconGift, IconPeople, IconTrophy, IconWallet, IconX } from "@/components/icons";
 
 const KIND_META: Record<
   NotificationItem["status"],
@@ -23,6 +23,7 @@ const KIND_META: Record<
 function iconFor(item: NotificationItem) {
   if (item.kind === "gift") return { ...KIND_META.info, Icon: IconGift, label: "HEDİYE" };
   if (item.kind === "transfer") return { ...KIND_META.info, label: "TRANSFER" };
+  if (item.kind === "league_joined") return { ...KIND_META.info, Icon: IconPeople, label: "ARKADAŞ LİGİ" };
   return KIND_META[item.status];
 }
 

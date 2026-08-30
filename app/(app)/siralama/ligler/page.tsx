@@ -3,10 +3,17 @@ import { getCurrentUser } from "@/lib/auth";
 import { getMyLeagues } from "@/lib/leagues";
 import LeagueActions from "@/components/LeagueActions";
 
-export default async function LiglerPage() {
+export default async function LiglerPage({
+  searchParams,
+}: {
+  // InviteFriendsCard's "Lig Kur" CTA links here with ?mode=create so the
+  // create form is already open — mirrors mobile/app/ligler.tsx.
+  searchParams: Promise<{ mode?: "create" | "join" }>;
+}) {
   const user = await getCurrentUser();
   if (!user) return null;
 
+  const { mode } = await searchParams;
   const leagues = await getMyLeagues(user.id);
 
   return (
@@ -31,7 +38,8 @@ export default async function LiglerPage() {
       <section>
         {leagues.length === 0 ? (
           <div className="rounded-2xl border border-card-border bg-card p-6 text-center text-sm text-ink-dim">
-            Henüz bir lige katılmadın.
+            <p>Henüz bir lige katılmadın.</p>
+            <p className="mt-1.5 text-xs text-ink-faint">Bir lig kur ya da bir davet koduyla katıl — aşağıdan başla.</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -56,7 +64,7 @@ export default async function LiglerPage() {
         )}
       </section>
 
-      <LeagueActions />
+      <LeagueActions initialMode={mode ?? null} />
     </div>
   );
 }

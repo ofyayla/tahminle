@@ -13,7 +13,8 @@ type AuthContextValue = {
     email: string,
     password: string,
     displayName: string,
-    favoriteTeam: TeamCode | null
+    favoriteTeam: TeamCode | null,
+    invite?: { inviteCode: string; ref: string | null } | null
   ) => Promise<void>;
   loginWithOAuth: (
     provider: "google" | "apple",
@@ -79,8 +80,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (email: string, password: string, displayName: string, favoriteTeam: TeamCode | null) => {
-      const res = await api.register(email, password, displayName, favoriteTeam);
+    async (
+      email: string,
+      password: string,
+      displayName: string,
+      favoriteTeam: TeamCode | null,
+      invite?: { inviteCode: string; ref: string | null } | null
+    ) => {
+      const res = await api.register(email, password, displayName, favoriteTeam, invite);
       await setToken(res.token);
       await refresh();
     },
