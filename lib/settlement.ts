@@ -355,6 +355,12 @@ export async function settleDueMatches() {
             data: { balance: { increment: pred.stake } },
           });
 
+          // A postponed match never resolved either way, so a sigorta spent
+          // on it protected nothing — free the joker back up rather than
+          // burning the user's one per season on a pick that was never
+          // actually at risk.
+          await prisma.seasonPerk.deleteMany({ where: { kind: "insurance", predictionId: pred.id } });
+
           refundedByUser.set(refundTo, (refundedByUser.get(refundTo) ?? 0) + pred.stake);
         })
       );
