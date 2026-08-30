@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Animated, Easing, StyleSheet, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as Notifications from "expo-notifications";
@@ -29,6 +30,10 @@ SplashScreen.setOptions({ duration: 250, fade: true });
 // A slow or offline network must never strand anyone on the splash — after
 // this long we drop into the app and let the screen show its own retry.
 const WARM_TIMEOUT_MS = 4000;
+// The splash always holds at least this long (from first JS render) so a fast
+// cold start doesn't flash by, then cross-fades to the app over SPLASH_FADE_MS.
+const SPLASH_MIN_MS = 1500;
+const SPLASH_FADE_MS = 350;
 
 export default function RootLayout() {
   const [archivoLoaded] = useArchivoBlack({ ArchivoBlack_400Regular });
@@ -48,9 +53,9 @@ export default function RootLayout() {
   );
 }
 
-// Owns the launch splash. It renders BootSplash — visually identical to the
-// native splash — until everything the first screen needs is ready, then
-// swaps in the navigator and tells the OS to fade its splash away.
+// Owns the launch splash. BootSplash (visually identical to the native splash)
+// sits on top of the navigator until everything the first screen needs is
+// ready AND the minimum hold has passed, then cross-fades away to reveal it.
 function AppGate({ fontsLoaded }: { fontsLoaded: boolean }) {
   const { user, loading } = useAuth();
 
@@ -59,7 +64,17 @@ function AppGate({ fontsLoaded }: { fontsLoaded: boolean }) {
   // splash lifts as soon as the session is known.
   const landsOnMatchday = !loading && !!user && user.favoriteTeam != null;
   const [warmed, setWarmed] = useState(false);
+  const [minElapsed, setMinElapsed] = useState(false);
+  const [splashGone, setSplashGone] = useState(false);
+  const [fade] = useState(() => new Animated.Value(1));
 
+  // Minimum on-screen time.
+  useEffect(() => {
+    const timer = setTimeout(() => setMinElapsed(true), SPLASH_MIN_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Warm the first Maç Günü payload while the splash holds.
   useEffect(() => {
     if (!landsOnMatchday) return;
     let cancelled = false;
@@ -81,14 +96,42 @@ function AppGate({ fontsLoaded }: { fontsLoaded: boolean }) {
     };
   }, [landsOnMatchday]);
 
-  const ready = fontsLoaded && !loading && (warmed || !landsOnMatchday);
+  const contentReady = fontsLoaded && !loading && (warmed || !landsOnMatchday);
+  const revealApp = contentReady && minElapsed;
 
+  // Hand the native splash over to our identical BootSplash the moment JS is
+  // up, so the only animated transition the user sees is BootSplash -> app.
+  const handOffNativeSplash = useCallback(() => {
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
+
+  // Cross-fade the splash out once the app behind it is ready and the minimum
+  // hold has passed.
   useEffect(() => {
-    if (ready) SplashScreen.hideAsync().catch(() => {});
-  }, [ready]);
+    if (!revealApp) return;
+    Animated.timing(fade, {
+      toValue: 0,
+      duration: SPLASH_FADE_MS,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setSplashGone(true);
+    });
+  }, [revealApp, fade]);
 
-  if (!ready) return <BootSplash />;
-  return <RootNavigator />;
+  return (
+    <View style={styles.root}>
+      {contentReady && <RootNavigator />}
+      {!splashGone && (
+        <Animated.View
+          style={[StyleSheet.absoluteFill, { opacity: fade }]}
+          pointerEvents={revealApp ? "none" : "auto"}
+        >
+          <BootSplash onLayout={handOffNativeSplash} />
+        </Animated.View>
+      )}
+    </View>
+  );
 }
 
 function RootNavigator() {
@@ -130,6 +173,10 @@ function RootNavigator() {
     </Stack>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+});
 
 // Sends the user to the screen a tapped notification is about. Handles both
 // the app being opened by the notification from cold (getLastNotificationResponse)

@@ -84,6 +84,14 @@ body {
   justify-content: center;
   gap: 1.25rem;
   background: var(--bg);
+  opacity: 1;
+  transition: opacity 350ms ease;
+}
+/* Set by SplashOverlay once the minimum hold has passed — fades to the page
+   behind it. loading.tsx's copy never gets this attribute. */
+.splash-root[data-fading="true"] {
+  opacity: 0;
+  pointer-events: none;
 }
 .splash-body {
   display: flex;
@@ -111,6 +119,9 @@ body {
   animation: tahminle-splash-sweep 1.1s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
+  .splash-root {
+    transition: none;
+  }
   .splash-body {
     animation-delay: 0ms;
     animation-duration: 1ms;
