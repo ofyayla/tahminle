@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Haftalık kasa (₺1.000/hafta) ve tek maç tavanı (₺400/maç) — kendi
+  // Haftalık kasa ve tek maç tavanı — kendi
   // tahminlerinle sınırlı, hediye edilen kuponlar dahil değil. Bir maç
   // yalnızca tek bir haftaya ait olduğundan tavan haftadan bağımsız
   // sorgulanır.

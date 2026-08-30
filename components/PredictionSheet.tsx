@@ -34,8 +34,8 @@ export default function PredictionSheet({
   onClose: () => void;
 }) {
   const router = useRouter();
-  // Kasa iki farklı sınır koyabilir: haftalık toplam (₺1.000) ve bu maça özel
-  // tavan (₺400). Hangisi daha düşükse bet slip'in gerçek tavanı odur.
+  // Kasa iki farklı sınır koyabilir: haftalık toplam ve bu maça özel tavan.
+  // Hangisi daha düşükse bet slip'in gerçek tavanı odur.
   const cap = Math.min(available, weekBudget.remaining, matchBudget.remaining);
   const [stake, setStake] = useState(Math.min(100, cap));
   const [loading, setLoading] = useState(false);

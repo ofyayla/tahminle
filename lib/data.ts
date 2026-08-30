@@ -98,7 +98,7 @@ export type WeeklyBudgetBreakdown = Budget & { byMatch: WeeklyBudgetMatch[] };
 // predictions this week before the kasa limit shipped: it isn't enforced
 // retroactively, only on new predictions going forward (see
 // app/api/predictions/route.ts), so a week that was already in progress at
-// rollout can show more than ₺1.000 until it resets next Monday.
+// rollout can show more than the cap until it resets next Monday.
 export async function getWeeklyBudgetBreakdown(
   userId: string,
   now: Date = new Date()

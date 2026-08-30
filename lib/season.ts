@@ -60,15 +60,11 @@ export const STARTING_BALANCE = 1000;
 // Haftalık kasa: bir maç haftasında kendi tahminlerine yatırabileceğin toplam
 // tutar. Herkes için aynıdır — bakiye ne olursa olsun kasa büyümez, bu yüzden
 // zengin bir bakiye sıralamayı satın alamaz.
-//
-// ₺1.000 dört takımlı (GS/FB/BJK/TS) bir haftayı karşılamıyordu: Avrupa
-// kupalarıyla birlikte haftada 2'şer maça çıkan 4 takım × maç başına 3 market
-// × ₺100 = 24 tahmin, yani ₺2.400'e kadar ihtiyaç doğuyor.
-export const WEEKLY_BUDGET = 2400;
+export const WEEKLY_BUDGET = 3000;
 
 // Tek bir maça (tüm marketleri toplamda) yatırılabilecek en fazla tutar —
 // haftanın tamamının tek kupona bağlanmasını engeller.
-export const PER_MATCH_CAP = 400;
+export const PER_MATCH_CAP = 1000;
 
 // Pazartesi desteği: haftaya bu tutarın altında giren oyuncunun bakiyesi bu
 // tutara tamamlanır. Sezonu tek kötü haftada kaybetmeyi imkânsız kılar.
