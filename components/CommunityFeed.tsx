@@ -48,29 +48,28 @@ export default function CommunityFeed({
             const choiceText = getChoiceLabel(item, item.market, item.choice);
 
             return (
-              <div key={item.id} className="flex gap-3 px-4 py-3.5">
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-bg-elevated">
+              <div key={item.id} className="flex items-center gap-2.5 px-4 py-2.5">
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-bg-elevated">
                   {meta ? (
-                    <Image src={meta.logo} alt={meta.name} width={36} height={36} className="h-full w-full object-cover" />
+                    <Image src={meta.logo} alt={meta.name} width={32} height={32} className="h-full w-full object-cover" />
                   ) : (
-                    <span className="font-display text-[10px] text-ink-dim">
+                    <span className="font-display text-[9px] text-ink-dim">
                       {item.displayName.slice(0, 2).toUpperCase()}
                     </span>
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-bold">
-                      {item.displayName} {item.isYou && <span className="text-gold">(Sen)</span>}
+                    <span className="truncate text-[13px]">
+                      <span className="font-bold">{item.displayName}</span>
+                      {item.isYou && <span className="text-gold"> (Sen)</span>}
+                      <span className="text-ink-dim"> · {choiceText}</span>
                     </span>
-                    <span className="flex-shrink-0 text-[11px] text-ink-faint">{timeAgo(item.at)}</span>
+                    <span className="flex-shrink-0 text-[10px] text-ink-faint">{timeAgo(item.at)}</span>
                   </div>
-                  <div className="mt-0.5 text-sm text-ink-dim">{item.homeTeam} – {item.awayTeam}</div>
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="rounded-full bg-gold/15 px-2.5 py-1 text-xs font-bold text-gold">
-                      {choiceText}
-                    </span>
-                    <span className="flex-shrink-0 font-display text-sm text-ink">{formatTL(item.stake)}</span>
+                  <div className="mt-0.5 flex items-center justify-between gap-2">
+                    <span className="truncate text-[11px] text-ink-faint">{item.homeTeam} – {item.awayTeam}</span>
+                    <span className="flex-shrink-0 font-display text-xs text-ink">{formatTL(item.stake)}</span>
                   </div>
                 </div>
               </div>

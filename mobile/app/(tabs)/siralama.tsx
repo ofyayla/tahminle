@@ -228,7 +228,7 @@ export default function SiralamaScreen() {
                     <View key={item.id} style={[styles.feedRow, i > 0 && styles.feedDivider]}>
                       <View style={styles.feedAvatar}>
                         {meta ? (
-                          <Image source={{ uri: meta.logo }} style={{ width: 32, height: 32 }} />
+                          <Image source={{ uri: meta.logo }} style={{ width: 28, height: 28 }} />
                         ) : (
                           <Text style={styles.avatarTextSm}>{item.displayName.slice(0, 2).toUpperCase()}</Text>
                         )}
@@ -236,17 +236,16 @@ export default function SiralamaScreen() {
                       <View style={{ flex: 1 }}>
                         <View style={styles.feedHeadRow}>
                           <Text style={styles.feedName} numberOfLines={1}>
-                            {item.displayName} {item.isYou && <Text style={{ color: colors.gold }}>(Sen)</Text>}
+                            <Text style={{ fontFamily: fonts.bold }}>{item.displayName}</Text>
+                            {item.isYou && <Text style={{ color: colors.gold }}> (Sen)</Text>}
+                            <Text style={styles.feedChoiceInline}> · {choiceText}</Text>
                           </Text>
                           <Text style={styles.feedTime}>{timeAgo(item.at)}</Text>
                         </View>
-                        <Text style={styles.feedMatch} numberOfLines={1}>
-                          {item.homeTeam} – {item.awayTeam}
-                        </Text>
                         <View style={styles.feedBottomRow}>
-                          <View style={styles.feedChip}>
-                            <Text style={styles.feedChipText}>{choiceText}</Text>
-                          </View>
+                          <Text style={styles.feedMatch} numberOfLines={1}>
+                            {item.homeTeam} – {item.awayTeam}
+                          </Text>
                           <Text style={styles.feedStake}>{formatTL(item.stake)}</Text>
                         </View>
                       </View>
@@ -346,16 +345,15 @@ const styles = StyleSheet.create({
   feedHeaderRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 8 },
   viewAllText: { color: colors.gold, fontSize: 12, fontFamily: fonts.bold },
   feedCard: { borderRadius: radii["2xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card },
-  feedRow: { flexDirection: "row", gap: 10, paddingHorizontal: 14, paddingVertical: 12 },
+  feedRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 9 },
   feedDivider: { borderTopWidth: 1, borderTopColor: colors.cardBorder },
-  feedAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.bgElevated, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  avatarTextSm: { color: colors.inkDim, fontFamily: fonts.display, fontSize: 10 },
+  feedAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.bgElevated, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  avatarTextSm: { color: colors.inkDim, fontFamily: fonts.display, fontSize: 9 },
   feedHeadRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
-  feedName: { flex: 1, fontSize: 13, fontFamily: fonts.bold, color: colors.ink },
-  feedMatch: { fontSize: 13, fontFamily: fonts.regular, color: colors.inkDim, marginTop: 2 },
-  feedTime: { color: colors.inkFaint, fontSize: 11, fontFamily: fonts.regular },
-  feedBottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 8 },
-  feedChip: { backgroundColor: `${colors.gold}26`, borderRadius: radii.full, paddingHorizontal: 10, paddingVertical: 4 },
-  feedChipText: { color: colors.gold, fontFamily: fonts.bold, fontSize: 11 },
-  feedStake: { color: colors.ink, fontFamily: fonts.display, fontSize: 13 },
+  feedName: { flex: 1, fontSize: 13, color: colors.ink },
+  feedChoiceInline: { fontFamily: fonts.regular, color: colors.inkDim },
+  feedMatch: { flex: 1, fontSize: 11, fontFamily: fonts.regular, color: colors.inkFaint },
+  feedTime: { color: colors.inkFaint, fontSize: 10, fontFamily: fonts.regular },
+  feedBottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 1 },
+  feedStake: { color: colors.ink, fontFamily: fonts.display, fontSize: 12 },
 });
