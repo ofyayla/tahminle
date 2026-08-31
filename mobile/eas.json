@@ -31,6 +31,12 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascApiKeyPath": "/Users/ofyayla/.appstore/AuthKey_B84XH25H24.p8",
+        "ascApiKeyId": "B84XH25H24",
+        "ascApiKeyIssuerId": "e6654a1f-c47e-4eed-9143-8c0607ce8ced"
+      }
+    }
   }
 }

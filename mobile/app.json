@@ -13,7 +13,7 @@
     "backgroundColor": "#0a0d16",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tahminle.app",
+      "bundleIdentifier": "com.tahminle.mobile",
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
