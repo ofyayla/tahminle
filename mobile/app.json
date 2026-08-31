@@ -4,7 +4,7 @@
     "slug": "tahminle",
     "scheme": [
       "tahminle",
-      "com.tahminle.app"
+      "com.tahminle.mobile"
     ],
     "version": "1.0.0",
     "orientation": "portrait",
@@ -20,7 +20,7 @@
       }
     },
     "android": {
-      "package": "com.tahminle.app",
+      "package": "com.tahminle.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#0a0d16",
         "foregroundImage": "./assets/android-icon-foreground.png",

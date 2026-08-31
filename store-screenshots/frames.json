@@ -1,0 +1,109 @@
+[
+  {
+    "slug": "mac-gunu",
+    "shot": "01-home.png",
+    "eyebrow": "SÜPER LİG",
+    "title": "Maç Sonucunu Bil,<br>Zirveye Çık",
+    "sub": "₺1.000 sanal kasayla başla — gerçek para yok.",
+    "accent": "#f6c945",
+    "wash": "rgba(246,201,69,.30)",
+    "wash2": "rgba(58,86,168,.26)",
+    "size": 74
+  },
+  {
+    "slug": "oranlar",
+    "shot": "02-mac.png",
+    "eyebrow": "MAÇ ORANLARI",
+    "title": "Maçı Seç,<br>Oranı Kilitle",
+    "sub": "Her maçta onlarca market, tek dokunuşta.",
+    "accent": "#3ecf8e",
+    "wash": "rgba(62,207,142,.26)",
+    "wash2": "rgba(246,201,69,.20)"
+  },
+  {
+    "slug": "kupon",
+    "shot": "05-stake.png",
+    "eyebrow": "BANKO JOKERİ",
+    "title": "Tahminini Kur,<br>Banko Yap",
+    "size": 80,
+    "sub": "Tutarsa kârın iki katına çıkar.",
+    "accent": "#f6c945",
+    "wash": "rgba(246,201,69,.32)",
+    "wash2": "rgba(169,138,46,.22)"
+  },
+  {
+    "slug": "tahminler",
+    "shot": "03-tahminler.png",
+    "eyebrow": "TAHMİNLERİM",
+    "title": "Açık Tahminlerini<br>Takip Et",
+    "size": 74,
+    "sub": "Stake, kilitli oran ve olası dönüş tek ekranda.",
+    "accent": "#3ecf8e",
+    "wash": "rgba(62,207,142,.28)",
+    "wash2": "rgba(58,86,168,.24)"
+  },
+  {
+    "slug": "siralama",
+    "shot": "07-siralama.png",
+    "eyebrow": "HAFTALIK YARIŞ",
+    "title": "Zirve İçin<br>Yarış",
+    "sub": "Net kâra göre haftalık taraftar sıralaması.",
+    "accent": "#f6c945",
+    "wash": "rgba(246,201,69,.32)",
+    "wash2": "rgba(239,88,101,.20)",
+    "overlays": [
+      {
+        "x": 128,
+        "y": 564,
+        "w": 175,
+        "name": "Taraftar34",
+        "note": "6/16 doğru · %38 isabet",
+        "h": 47
+      },
+      {
+        "x": 128,
+        "y": 642,
+        "w": 175,
+        "name": "AslanYürek",
+        "note": "5/13 doğru · %38 isabet",
+        "h": 47
+      },
+      {
+        "x": 128,
+        "y": 720,
+        "w": 175,
+        "name": "KanaryaEfe",
+        "note": "9/14 doğru · %64 isabet",
+        "h": 47
+      }
+    ]
+  },
+  {
+    "slug": "cuzdan",
+    "shot": "04-cuzdan.png",
+    "eyebrow": "SANAL KASA",
+    "title": "Kasanı<br>Büyüt",
+    "sub": "Gerçek para yok — tüm bakiyeler sanal.",
+    "accent": "#3ecf8e",
+    "wash": "rgba(62,207,142,.30)",
+    "wash2": "rgba(246,201,69,.22)"
+  },
+  {
+    "slug": "ligler",
+    "shot": "06-lig.png",
+    "eyebrow": "ÖZEL LİGLER",
+    "title": "Arkadaşlarınla<br>Lig Kur",
+    "sub": "Davet kodunu paylaş, ikinize de ₺100 bonus.",
+    "accent": "#8a7bff",
+    "wash": "rgba(138,123,255,.30)",
+    "wash2": "rgba(246,201,69,.20)",
+    "masks": [
+      {
+        "x": 0,
+        "y": 846,
+        "w": 402,
+        "h": 28
+      }
+    ]
+  }
+]
