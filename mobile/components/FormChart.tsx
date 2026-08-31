@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { formatDateRange, formatTL } from "@/lib/format";
 import { colors, fonts, radii } from "@/lib/theme";
@@ -17,10 +17,13 @@ const MIN_BAR = 10; // so a small but non-zero week is still visible
 export default function FormChart({ points }: { points: FormPoint[] }) {
   const [selected, setSelected] = useState(points.length - 1);
 
-  // New data (or a different week count) — snap back to the latest week.
-  useEffect(() => {
+  // New data (a different week count) — snap the selection back to the latest
+  // week during render, per React's "adjust state on prop change" pattern.
+  const [prevLen, setPrevLen] = useState(points.length);
+  if (prevLen !== points.length) {
+    setPrevLen(points.length);
     setSelected(points.length - 1);
-  }, [points.length]);
+  }
 
   const maxAbs = useMemo(() => Math.max(1, ...points.map((p) => Math.abs(p.net))), [points]);
 
