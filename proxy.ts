@@ -17,7 +17,12 @@ const PUBLIC_PATHS = ["/login", "/register"];
 // PUBLIC_PATHS, which would otherwise bounce a signed-in visitor straight
 // back to "/" before they ever see it. Prefix match since the code varies
 // per league.
-const OPEN_PREFIXES = ["/lig/"];
+//
+// The privacy policy joins it for the same reason: Google Play's store
+// listing points at /gizlilik-politikasi and a reviewer (or anyone already
+// signed in who taps the link from inside the app) must land on the text
+// itself, never on a redirect.
+const OPEN_PREFIXES = ["/lig/", "/gizlilik-politikasi"];
 
 async function isAuthenticated(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
