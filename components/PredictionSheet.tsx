@@ -64,7 +64,7 @@ export default function PredictionSheet({
       return;
     }
     if (stake > weekBudget.remaining) {
-      setError(`Bu hafta için kasan ₺${weekBudget.remaining} kaldı. Kasa her Pazartesi yenilenir.`);
+      setError(`Bu hafta için kasan ₺${weekBudget.remaining} kaldı. Kasa her Salı yenilenir.`);
       return;
     }
     if (stake > matchBudget.remaining) {

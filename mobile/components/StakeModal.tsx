@@ -65,7 +65,7 @@ export default function StakeModal({
       return;
     }
     if (stakeNum > weekBudget.remaining) {
-      setError(`Bu hafta için kasan ₺${weekBudget.remaining} kaldı. Kasa her Pazartesi yenilenir.`);
+      setError(`Bu hafta için kasan ₺${weekBudget.remaining} kaldı. Kasa her Salı yenilenir.`);
       return;
     }
     if (stakeNum > matchBudget.remaining) {

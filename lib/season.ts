@@ -5,14 +5,16 @@ import { prisma } from "./prisma";
 const ISTANBUL_OFFSET_MS = 3 * 60 * 60 * 1000;
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-// A maç haftası (Faz 1, madde 01): Monday 00:00 → Sunday 23:59 Istanbul time,
+// A maç haftası (Faz 1, madde 01): Tuesday 00:00 → Monday 23:59 Istanbul time,
 // independent of any season anchor — pure calendar math, valid for any date.
+// Haftalık takip ve tüm hafta pencereleri (kasa, sıralama, banko, haftanın
+// birincisi) Salı'dan Salı'ya işler; birinci ödülleri Salı 09:00'da hesaplanır.
 export function weekStartFor(date: Date): Date {
   const local = new Date(date.getTime() + ISTANBUL_OFFSET_MS);
-  const daysSinceMonday = (local.getUTCDay() + 6) % 7;
+  const daysSinceTuesday = (local.getUTCDay() + 5) % 7;
   const localMidnight =
     Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) -
-    daysSinceMonday * 24 * 60 * 60 * 1000;
+    daysSinceTuesday * 24 * 60 * 60 * 1000;
   return new Date(localMidnight - ISTANBUL_OFFSET_MS);
 }
 
@@ -20,9 +22,10 @@ export function weekEndFor(date: Date): Date {
   return new Date(weekStartFor(date).getTime() + WEEK_MS);
 }
 
-// A season is 4 maç haftası (Faz 1, madde 03). Season 1 opens Monday 00:00
-// Istanbul on 2026-08-31 — derived from weekStartFor rather than hand-typed,
-// so the anchor is guaranteed to land exactly on a week boundary.
+// A season is 4 maç haftası (Faz 1, madde 03). Season 1 opens Tuesday 00:00
+// Istanbul on 2026-08-25 — the noon-2026-08-31 seed resolves through the
+// Salı-anchored weekStartFor to that boundary, so the anchor is guaranteed to
+// land exactly on a week boundary. Next season boundary: Tuesday 2026-09-22.
 export const SEASON_ONE_START = weekStartFor(new Date(Date.UTC(2026, 7, 31, 12, 0, 0)));
 export const SEASON_WEEKS = 4;
 const SEASON_MS = SEASON_WEEKS * WEEK_MS;
@@ -66,7 +69,7 @@ export const WEEKLY_BUDGET = 3000;
 // haftanın tamamının tek kupona bağlanmasını engeller.
 export const PER_MATCH_CAP = 1000;
 
-// Pazartesi desteği: haftaya bu tutarın altında giren oyuncunun bakiyesi bu
+// Salı desteği: haftaya bu tutarın altında giren oyuncunun bakiyesi bu
 // tutara tamamlanır. Sezonu tek kötü haftada kaybetmeyi imkânsız kılar.
 export const WEEKLY_TOPUP_FLOOR = 200;
 
@@ -97,7 +100,7 @@ export async function applyPeriodicAdjustments(now: Date = new Date()) {
     },
   });
 
-  // Pazartesi desteği: bu hafta için henüz kontrol edilmemiş ve tabanın
+  // Salı desteği: bu hafta için henüz kontrol edilmemiş ve tabanın
   // altındaki bakiyeler tabana tamamlanır. Sezon sıfırlaması gören
   // kullanıcılar weekAnchor'ı zaten güncellendiği için burada tekrar
   // işlenmez.

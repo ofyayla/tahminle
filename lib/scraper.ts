@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { fetchOddsFromBackend, type BackendOddsMatch } from "./oddsBackend";
 import { buildMatchKey, isSameFixture, isVirtualFixture } from "./matchKey";
@@ -124,12 +125,30 @@ export async function scrapeAndUpdateMatches() {
   const byExternalId = new Map(candidateRows.map((row) => [row.externalId, row]));
   const claimed = new Set<string>();
 
+  // A source can keep listing a fixture whose row is already "finished" or
+  // "postponed" here (stale bulletin, a just-ended match). Those aren't in
+  // candidateRows, so without this guard the branch below would `create` a
+  // second row with the same externalId — a unique-constraint crash — or, if
+  // it somehow updated, drag a settled match back to "live". Skip them.
+  const settledExternalIds = new Set(
+    (
+      await prisma.match.findMany({
+        where: {
+          externalId: { in: matches.map((m) => m.externalId) },
+          status: { in: ["finished", "postponed"] },
+        },
+        select: { externalId: true },
+      })
+    ).map((row) => row.externalId)
+  );
+
   const results = await Promise.all(
     matches.map((m) => {
       let existing = byExternalId.get(m.externalId);
       if (!existing) {
         existing = candidateRows.find((row) => !claimed.has(row.id) && isSameFixture(m, row));
       }
+      if (!existing && settledExternalIds.has(m.externalId)) return null;
       if (existing) claimed.add(existing.id);
 
       const data = {
@@ -160,11 +179,19 @@ export async function scrapeAndUpdateMatches() {
         return prisma.match.update({ where: { id: existing.id }, data });
       }
 
-      return prisma.match.create({ data });
+      // Concurrent scrape ticks (or a second serverless instance) can both
+      // reach here for the same brand-new fixture; let the loser fall back to
+      // an update instead of throwing a unique-constraint error.
+      return prisma.match.create({ data }).catch((err) => {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+          return prisma.match.update({ where: { externalId: m.externalId }, data });
+        }
+        throw err;
+      });
     })
   );
 
-  return results;
+  return results.filter((row) => row !== null);
 }
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;

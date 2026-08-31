@@ -203,11 +203,11 @@ export default function CuzdanScreen() {
           )}
 
           <Text style={styles.budgetNote}>
-            Kendi tahminlerine bu hafta yatırabileceğin toplam tutar — bakiyen ne kadar büyük olursa olsun aynı. Her Pazartesi yenilenir.
+            Kendi tahminlerine bu hafta yatırabileceğin toplam tutar — bakiyen ne kadar büyük olursa olsun aynı. Her Salı yenilenir.
           </Text>
           {budgetOverCap && (
             <Text style={styles.budgetNoteMuted}>
-              Kasa kuralından önce yaptığın tahminler de bu toplama dahil. Gelecek Pazartesi&apos;den itibaren gerçek anlamda işleyecek.
+              Kasa kuralından önce yaptığın tahminler de bu toplama dahil. Gelecek Salı&apos;dan itibaren gerçek anlamda işleyecek.
             </Text>
           )}
 

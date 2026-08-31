@@ -10,7 +10,7 @@ export type ChampionEntry = {
 export type WeeklyChampionEntry = ChampionEntry & { weekStart: string; bonus: number };
 export type SeasonChampionEntry = ChampionEntry & { seasonStart: string };
 
-// The global honour roll — every past Pazartesi 09:00 and season-boundary
+// The global honour roll — every past Salı 09:00 and season-boundary
 // award, newest first. Not user-scoped: "geçmiş şampiyonlar" is a shared
 // record, the same for everyone looking at it.
 export async function getHallOfFame(weeklyLimit = 12, seasonLimit = 6) {

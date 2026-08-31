@@ -24,13 +24,13 @@ export async function syncMatchState() {
   // Cheap and idempotent (bounded WHERE-conditioned updateMany calls that
   // affect zero rows outside the week/season boundary tick) — running it on
   // every relevant page load, not just the external cron, means the
-  // Pazartesi desteği and season reset land the moment someone opens the
+  // Salı desteği and season reset land the moment someone opens the
   // app after the boundary, not up to ~60s later.
   await applyPeriodicAdjustments().catch((err) =>
     console.error("Haftalık/sezonluk bakiye güncellemesi başarısız:", err)
   );
 
-  // Aynı sebeple: haftanın/sezonun birincisi ödülü, Pazartesi 09:00 sınırı
+  // Aynı sebeple: haftanın/sezonun birincisi ödülü, Salı 09:00 sınırı
   // geçer geçmez ilk isteği yapan kullanıcının kendisi tarafından tetiklenir.
   // Her ikisi de kendi idempotency guard'ını taşıyor (WeeklyChampion/
   // SeasonChampion'daki unique alan), bu yüzden sık çağrılmaları güvenli.
@@ -42,10 +42,22 @@ export async function syncMatchState() {
   );
 }
 
-export async function getUpcomingMatches() {
+export async function getUpcomingMatches(now: Date = new Date()) {
   await syncMatchState();
+  // Maç günü yalnızca içinde bulunulan maç haftasını (Salı→Salı) gösterir —
+  // gelecek haftanın fikstürü çekilmiş olsa bile listelenmez. Sınıra denk
+  // gelip hâlâ oynanan bir maç kaybolmasın diye "live" maçlar pencereden
+  // bağımsız her zaman dahil edilir.
   return prisma.match.findMany({
-    where: { status: { in: ["upcoming", "live"] } },
+    where: {
+      OR: [
+        { status: "live" },
+        {
+          status: "upcoming",
+          kickoff: { gte: weekStartFor(now), lt: weekEndFor(now) },
+        },
+      ],
+    },
     orderBy: { kickoff: "asc" },
   });
 }
@@ -98,7 +110,7 @@ export type WeeklyBudgetBreakdown = Budget & { byMatch: WeeklyBudgetMatch[] };
 // predictions this week before the kasa limit shipped: it isn't enforced
 // retroactively, only on new predictions going forward (see
 // app/api/predictions/route.ts), so a week that was already in progress at
-// rollout can show more than the cap until it resets next Monday.
+// rollout can show more than the cap until it resets next Tuesday.
 export async function getWeeklyBudgetBreakdown(
   userId: string,
   now: Date = new Date()

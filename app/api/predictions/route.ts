@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
   if (weeklyUsed + stake > weeklyCap) {
     return NextResponse.json(
       {
-        error: `Bu hafta için kasan ₺${weeklyCap - weeklyUsed} kaldı. Kasa her Pazartesi yenilenir.`,
+        error: `Bu hafta için kasan ₺${weeklyCap - weeklyUsed} kaldı. Kasa her Salı yenilenir.`,
       },
       { status: 400 }
     );

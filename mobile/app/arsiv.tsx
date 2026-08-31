@@ -115,7 +115,7 @@ export default function ArsivScreen() {
             <Text style={styles.sectionSub}>Son {weekly.length} haftanın şampiyonları.</Text>
             {weekly.length === 0 ? (
               <View style={styles.emptyCard}>
-                <Text style={styles.empty}>Henüz taçlanan bir hafta yok — Pazartesi 09:00&apos;da ilk şampiyon belli olacak.</Text>
+                <Text style={styles.empty}>Henüz taçlanan bir hafta yok — Salı 09:00&apos;da ilk şampiyon belli olacak.</Text>
               </View>
             ) : (
               <View style={{ gap: 8 }}>

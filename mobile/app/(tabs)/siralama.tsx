@@ -318,7 +318,7 @@ export default function SiralamaScreen() {
                   haftasında kendi tahminlerine yatırabileceğin toplam tutar ₺{WEEKLY_BUDGET} ile, tek bir
                   maça yatırabileceğin tutar ise ₺{PER_MATCH_CAP} ile sınırlı — bu yüzden yüksek bakiye
                   sıralamada avantaj sağlamaz, herkes aynı kasayla oynar. Hediye edilen sürpriz kuponlar
-                  seçimi sana ait olmadığı için sıralamaya girmez. Haftalık sıralama her Pazartesi
+                  seçimi sana ait olmadığı için sıralamaya girmez. Haftalık sıralama her Salı
                   sıfırlanır; sezonluk sıralama son 4 haftanın toplamıdır ve sezon sonunda sıfırlanır.
                 </InfoAccordion>
               </View>

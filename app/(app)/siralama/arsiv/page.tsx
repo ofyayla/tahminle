@@ -91,7 +91,7 @@ export default async function ArsivPage() {
         <p className="mb-3 text-sm text-ink-dim">Son {hallOfFame.weekly.length} haftanın şampiyonları.</p>
         {hallOfFame.weekly.length === 0 ? (
           <div className="rounded-2xl border border-card-border bg-card p-6 text-center text-sm text-ink-dim">
-            Henüz taçlanan bir hafta yok — Pazartesi 09:00&apos;da ilk şampiyon belli olacak.
+            Henüz taçlanan bir hafta yok — Salı 09:00&apos;da ilk şampiyon belli olacak.
           </div>
         ) : (
           <div className="space-y-2">

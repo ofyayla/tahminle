@@ -6,9 +6,9 @@ import { SEASON_ONE_START, WEEK_MS, seasonStartFor, weekStartFor } from "./seaso
 // Faz 2, Bölüm III: "🏆 rozet + ₺250 prim" for the weekly champion.
 export const WEEKLY_CHAMPION_BONUS = 250;
 
-// Pazartesi 09:00 Istanbul — an hour after the kasa/season resets already
-// fire at 00:00, so the award always looks back at a fully-settled week
-// (the last Sunday-night match has had time to resolve).
+// Salı 09:00 Istanbul — nine hours after the week rolls over at 00:00, so the
+// award always looks back at a fully-settled week (the last Monday-night match
+// has had time to resolve).
 const AWARD_HOUR_MS = 9 * 60 * 60 * 1000;
 
 function isUniqueConstraintError(err: unknown): boolean {
@@ -60,6 +60,10 @@ export async function awardWeeklyChampionIfDue(now: Date = new Date()) {
   if (now.getTime() < thisWeekStart.getTime() + AWARD_HOUR_MS) return null;
 
   const prevWeekStart = new Date(thisWeekStart.getTime() - WEEK_MS);
+  // Sezon 1'den önce kapanan (beta) haftalar taçlanmaz — ilk gerçek haftanın
+  // birincisi, Sezon 1'in ilk haftası bittiğinde belli olur.
+  if (prevWeekStart.getTime() < SEASON_ONE_START.getTime()) return null;
+
   const winner = await topNetKarUser(prevWeekStart, thisWeekStart);
   if (!winner) return null; // kimse oynamadı — bu hafta şampiyonu yok
 
@@ -95,7 +99,7 @@ export async function awardWeeklyChampionIfDue(now: Date = new Date()) {
 }
 
 // Same idea, but for the season that just closed — fires at the same
-// Pazartesi 09:00 gate, only in the very first week of a new season (i.e.
+// Salı 09:00 gate, only in the very first week of a new season (i.e.
 // the week whose start IS a season start), and only once a prior season
 // actually exists to crown.
 export async function awardSeasonChampionIfDue(now: Date = new Date()) {
