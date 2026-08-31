@@ -23,8 +23,16 @@ export default function DavetScreen() {
   const attempted = useRef(false);
 
   useEffect(() => {
-    if (loading || !code || attempted.current) return;
+    if (loading || attempted.current) return;
     attempted.current = true;
+
+    // Reached without an invite code (a stale deep link, a restored dev
+    // navigation state) — there's nothing to redeem, so just get out of the
+    // way instead of spinning forever.
+    if (!code) {
+      router.replace(user ? "/" : "/login");
+      return;
+    }
 
     if (!user) {
       router.replace({ pathname: "/register", params: { invite: code, ref: ref ?? "" } });
