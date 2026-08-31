@@ -286,8 +286,11 @@ export default function GizlilikPolitikasiPage() {
               bulunabilirsin.
             </>,
             <>
-              Ya da <MailLink /> adresine, hesabına kayıtlı e-posta
-              adresinden &ldquo;hesap silme&rdquo; konulu bir mesaj gönder.
+              Ya da <MailLink /> adresine hesabına kayıtlı e-posta adresinden mesaj gönderebilir veya{" "}
+              <Link href="/hesap-silme" className="font-semibold text-gold underline underline-offset-2 hover:opacity-80">
+                Hesap ve Veri Silme Talebi
+              </Link>{" "}
+              sayfamızdaki adımları takip edebilirsin.
             </>,
           ]}
         />

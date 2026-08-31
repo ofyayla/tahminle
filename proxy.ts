@@ -22,7 +22,7 @@ const PUBLIC_PATHS = ["/login", "/register"];
 // listing points at /gizlilik-politikasi and a reviewer (or anyone already
 // signed in who taps the link from inside the app) must land on the text
 // itself, never on a redirect.
-const OPEN_PREFIXES = ["/lig/", "/gizlilik-politikasi"];
+const OPEN_PREFIXES = ["/lig/", "/gizlilik-politikasi", "/hesap-silme"];
 
 async function isAuthenticated(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
