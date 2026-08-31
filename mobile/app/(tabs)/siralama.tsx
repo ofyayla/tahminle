@@ -9,7 +9,7 @@ import LeaderboardBoard from "@/components/LeaderboardBoard";
 import { api, type LeagueDetail, type MyLeague } from "@/lib/api";
 import type { LeaderboardRow, LeaderboardScope } from "@/lib/api";
 import { useScreenLoad } from "@/lib/useScreenLoad";
-import { formatDateRange, formatTL } from "@/lib/format";
+import { formatCountdown, formatDateRange, formatTL } from "@/lib/format";
 import { PER_MATCH_CAP, WEEKLY_BUDGET } from "@/lib/season";
 import { getChoiceLabel, type MarketCode } from "@/lib/markets";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
@@ -56,6 +56,13 @@ export default function SiralamaScreen() {
   const [data, setData] = useState<LeaderboardData | null>(null);
   const [scope, setScope] = useState<"week" | "season">("week");
   const [filter, setFilter] = useState<TeamCode | "ALL">("ALL");
+  // Re-render once a minute so the countdown label stays fresh without a
+  // pull-to-refresh — matters most in the final day, when it ticks by hour.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Arkadaşlarım/Herkes: which board this screen shows. Friend leagues used
   // to be a small 👥 card buried under the global board — this makes the
@@ -252,9 +259,14 @@ export default function SiralamaScreen() {
                         </Text>
                       </View>
                     </View>
-                    <Text style={styles.seasonNote}>
-                      {formatDateRange(new Date(active.rangeStart), new Date(active.rangeEnd))}
-                    </Text>
+                    <View style={styles.seasonNote}>
+                      <Text style={styles.seasonNoteText}>
+                        {formatDateRange(new Date(active.rangeStart), new Date(active.rangeEnd))}
+                      </Text>
+                      <Text style={styles.seasonNoteStrong}>
+                        {formatCountdown(new Date(active.rangeEnd), new Date(now))}
+                      </Text>
+                    </View>
                   </View>
                 )}
 
@@ -446,14 +458,16 @@ const styles = StyleSheet.create({
   youNet: { fontSize: 24, fontFamily: fonts.display },
   youTotal: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular, marginTop: 2 },
   seasonNote: {
-    color: colors.inkDim,
-    fontSize: 11,
-    fontFamily: fonts.regular,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 12,
     borderTopWidth: 1,
     borderTopColor: `${colors.gold}33`,
     paddingTop: 12,
   },
+  seasonNoteText: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular },
+  seasonNoteStrong: { color: colors.ink, fontSize: 11, fontFamily: fonts.bold },
   filterRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
   filterChip: { borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, borderRadius: radii.full, paddingHorizontal: 16, paddingVertical: 8 },
   filterChipActive: { backgroundColor: colors.gold, borderColor: colors.gold },

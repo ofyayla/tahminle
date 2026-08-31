@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
-import { formatDateRange, formatTL } from "@/lib/format";
+import { formatCountdown, formatDateRange, formatTL } from "@/lib/format";
 import type { LeaderboardScope } from "@/lib/data";
 
 const FILTERS: { code: TeamCode | "ALL"; label: string }[] = [
@@ -36,6 +36,13 @@ export default function LeaderboardBoard({
 }) {
   const [scope, setScope] = useState<"week" | "season">("week");
   const [filter, setFilter] = useState<TeamCode | "ALL">("ALL");
+  // Re-render once a minute so the countdown label stays fresh without a full
+  // page reload — matters most in the final day, when it counts down by hour.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const data = scope === "week" ? week : season;
   const visible = filter === "ALL" ? data.ranked : data.ranked.filter((r) => r.favoriteTeam === filter);
@@ -79,6 +86,7 @@ export default function LeaderboardBoard({
               <path d="M3 10h18M8 3v4M16 3v4" />
             </svg>
             {formatDateRange(new Date(data.rangeStart), new Date(data.rangeEnd))}
+            <span className="ml-auto font-bold text-ink">{formatCountdown(new Date(data.rangeEnd), new Date(now))}</span>
           </div>
         </div>
       )}

@@ -62,6 +62,19 @@ export function formatDateRange(start: Date, end: Date): string {
   return `${s.day} ${MONTHS[s.month - 1].slice(0, 3)} – ${e.day} ${MONTHS[e.month - 1].slice(0, 3)}`;
 }
 
+// "3 gün kaldı" for the time left until a week/season boundary. Falls through
+// to hours in the final day and a generic "az kaldı" in the final hour, so the
+// label keeps moving right up to the reset instead of sticking on "0 gün".
+export function formatCountdown(end: Date, now: Date = new Date()): string {
+  const ms = end.getTime() - now.getTime();
+  if (ms <= 0) return "sona erdi";
+  const days = Math.floor(ms / 86_400_000);
+  if (days >= 1) return `${days} gün kaldı`;
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours >= 1) return `${hours} saat kaldı`;
+  return "az kaldı";
+}
+
 export type BudgetSegment = { label: string; stake: number; color: string };
 
 const BUDGET_TONES = ["#f6c945", "#d9b13e", "#a98a2e", "#7a6423"];
