@@ -224,6 +224,16 @@ export const api = {
       body: JSON.stringify({ currentPassword, newPassword }),
     }),
 
+  // Permanent, and required by Google Play for any app with accounts.
+  // `confirm` must be the account's own displayName typed back — the backend
+  // rejects anything else (app/api/account/route.ts explains why it isn't a
+  // password check: OAuth-only accounts don't have one).
+  deleteAccount: (confirm: string) =>
+    request<{ ok: true }>("/api/account", {
+      method: "DELETE",
+      body: JSON.stringify({ confirm }),
+    }),
+
   getCommunityFeed: () =>
     request<{
       feed: {

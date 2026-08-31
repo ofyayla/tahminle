@@ -3,14 +3,21 @@ import { useFocusEffect } from "expo-router";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import * as WebBrowser from "expo-web-browser";
 import { TEAM_META } from "@/lib/teams";
 import { colors, fonts, radii } from "@/lib/theme";
 import { useAuth } from "@/lib/auth-context";
 import { api, ApiError } from "@/lib/api";
-import { IconCheck, IconLogout, IconPencil, IconX } from "@/components/icons";
+import { API_BASE_URL } from "@/lib/config";
+import { IconArrowRight, IconCheck, IconLogout, IconPencil, IconShield, IconX } from "@/components/icons";
+
+// Opened in an in-app browser rather than bundled as a screen: the policy is
+// the same document Google Play's store listing points at, so there is only
+// ever one copy to keep current (app/gizlilik-politikasi on the backend).
+const PRIVACY_POLICY_URL = `${API_BASE_URL}/gizlilik-politikasi`;
 
 export default function HesabimScreen() {
-  const { user, rank, totalPlayers, refresh, logout } = useAuth();
+  const { user, rank, totalPlayers, refresh, logout, deleteAccount } = useAuth();
   const [loading, setLoading] = useState(true);
   const [titles, setTitles] = useState({ weeklyCount: 0, seasonCount: 0 });
 
@@ -26,6 +33,11 @@ export default function HesabimScreen() {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwSaved, setPwSaved] = useState(false);
+
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteInput, setDeleteInput] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -56,6 +68,26 @@ export default function HesabimScreen() {
       setNameError(err instanceof ApiError ? err.message : "Kaydedilemedi.");
     } finally {
       setNameSaving(false);
+    }
+  }
+
+  function cancelDelete() {
+    setConfirmingDelete(false);
+    setDeleteInput("");
+    setDeleteError(null);
+  }
+
+  async function submitDelete() {
+    if (!user || deleteInput.trim() !== user.displayName) return;
+    setDeleteError(null);
+    setDeleting(true);
+    try {
+      await deleteAccount(deleteInput.trim());
+      // No navigation here on purpose — clearing the user in AuthProvider is
+      // what the root layout's gate watches, so it routes to /login itself.
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : "Hesap silinemedi, tekrar dener misin?");
+      setDeleting(false);
     }
   }
 
@@ -273,10 +305,79 @@ export default function HesabimScreen() {
           </View>
         </View>
 
+        <Text style={styles.sectionTitle}>Gizlilik</Text>
+        <Pressable
+          style={styles.privacyRow}
+          onPress={() => WebBrowser.openBrowserAsync(PRIVACY_POLICY_URL)}
+        >
+          <IconShield size={18} color={colors.gold} />
+          <View style={styles.privacyTextWrap}>
+            <Text style={styles.privacyTitle}>Gizlilik Politikası</Text>
+            <Text style={styles.privacySub}>
+              Hangi verileri topluyoruz, neden ve nasıl silebilirsin
+            </Text>
+          </View>
+          <IconArrowRight size={16} color={colors.inkFaint} />
+        </Pressable>
+
         <Pressable style={styles.logoutBtn} onPress={logout}>
           <IconLogout size={16} color={colors.red} />
           <Text style={styles.logoutText}>Çıkış Yap</Text>
         </Pressable>
+
+        {!confirmingDelete ? (
+          <Pressable style={styles.deleteBtn} onPress={() => setConfirmingDelete(true)}>
+            <Text style={styles.deleteBtnText}>Hesabımı Sil</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.deleteCard}>
+            <Text style={styles.deleteTitle}>Hesabını kalıcı olarak sil</Text>
+            <Text style={styles.deleteBody}>
+              Tahminlerin, bakiyen, transfer ve hediye geçmişin, lig üyeliklerin ve kazandığın
+              kupalar kalıcı olarak silinir. Bu işlem geri alınamaz. Sahibi olduğun ligler, en eski
+              üyeye devredilir.
+            </Text>
+            <Text style={styles.deleteLabel}>
+              Onaylamak için kullanıcı adını yaz:{" "}
+              <Text style={styles.deleteLabelName}>{user.displayName}</Text>
+            </Text>
+            <TextInput
+              style={styles.input}
+              autoFocus
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder={user.displayName}
+              placeholderTextColor={colors.inkFaint}
+              value={deleteInput}
+              onChangeText={(t) => {
+                setDeleteInput(t);
+                setDeleteError(null);
+              }}
+            />
+            {deleteError && <Text style={styles.errorText}>{deleteError}</Text>}
+            <View style={styles.deleteActions}>
+              <Pressable
+                style={[styles.deleteCancelBtn, deleting && styles.iconBtnDisabled]}
+                disabled={deleting}
+                onPress={cancelDelete}
+              >
+                <Text style={styles.deleteCancelText}>Vazgeç</Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.deleteConfirmBtn,
+                  (deleting || deleteInput.trim() !== user.displayName) && styles.iconBtnDisabled,
+                ]}
+                disabled={deleting || deleteInput.trim() !== user.displayName}
+                onPress={submitDelete}
+              >
+                <Text style={styles.deleteConfirmText}>
+                  {deleting ? "Siliniyor..." : "Kalıcı Olarak Sil"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         <Text style={styles.disclaimer}>Gerçek para içermez · Tüm bakiyeler ve sonuçlar sanaldır.</Text>
       </ScrollView>
@@ -369,5 +470,63 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   logoutText: { color: colors.red, fontFamily: fonts.bold, fontSize: 14 },
+  privacyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: radii["2xl"],
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  privacyTextWrap: { flex: 1 },
+  privacyTitle: { color: colors.ink, fontFamily: fonts.bold, fontSize: 13 },
+  privacySub: { color: colors.inkDim, fontFamily: fonts.regular, fontSize: 11, marginTop: 2 },
+  deleteBtn: {
+    alignItems: "center",
+    borderRadius: radii["2xl"],
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
+    paddingVertical: 14,
+    marginBottom: 20,
+  },
+  deleteBtnText: { color: colors.inkDim, fontFamily: fonts.bold, fontSize: 13 },
+  deleteCard: {
+    borderRadius: radii["2xl"],
+    borderWidth: 1,
+    borderColor: `${colors.red}4D`,
+    backgroundColor: `${colors.red}0F`,
+    padding: 16,
+    marginBottom: 20,
+    gap: 10,
+  },
+  deleteTitle: { color: colors.red, fontFamily: fonts.display, fontSize: 15 },
+  deleteBody: { color: colors.inkDim, fontFamily: fonts.regular, fontSize: 12, lineHeight: 18 },
+  deleteLabel: { color: colors.inkDim, fontFamily: fonts.regular, fontSize: 12 },
+  deleteLabelName: { color: colors.ink, fontFamily: fonts.bold },
+  deleteActions: { flexDirection: "row", gap: 8 },
+  deleteCancelBtn: {
+    flex: 1,
+    alignItems: "center",
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.bgElevated,
+    paddingVertical: 11,
+  },
+  deleteCancelText: { color: colors.ink, fontFamily: fonts.bold, fontSize: 12 },
+  deleteConfirmBtn: {
+    flex: 1,
+    alignItems: "center",
+    borderRadius: radii.lg,
+    backgroundColor: colors.red,
+    paddingVertical: 11,
+  },
+  deleteConfirmText: { color: colors.ink, fontFamily: fonts.bold, fontSize: 12 },
   disclaimer: { textAlign: "center", color: colors.inkFaint, fontSize: 11, fontFamily: fonts.regular },
 });

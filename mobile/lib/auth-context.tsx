@@ -22,6 +22,7 @@ type AuthContextValue = {
     fullName?: string | null
   ) => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: (confirm: string) => Promise<void>;
   refresh: () => Promise<void>;
 };
 
@@ -112,9 +113,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  // Same teardown as logout, but the account itself is gone afterwards.
+  // Push is unregistered first for the same reason: the backend needs a live
+  // session to know whose token to drop, and after the delete there is no
+  // session — nor any user row the PushToken could still hang off.
+  //
+  // The local token is only cleared once the request has succeeded. Wiping it
+  // first would leave a failed delete (offline, wrong confirmation) with no
+  // way to retry and no way back into the account.
+  const deleteAccount = useCallback(async (confirm: string) => {
+    await unregisterFromPush().catch(() => {});
+    await api.deleteAccount(confirm);
+    await clearToken();
+    setUser(null);
+  }, []);
+
   return (
     <AuthContext.Provider
-      value={{ user, rank, totalPlayers, loading, login, register, loginWithOAuth, logout, refresh }}
+      value={{
+        user,
+        rank,
+        totalPlayers,
+        loading,
+        login,
+        register,
+        loginWithOAuth,
+        logout,
+        deleteAccount,
+        refresh,
+      }}
     >
       {children}
     </AuthContext.Provider>

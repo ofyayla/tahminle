@@ -3,8 +3,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { getLeaderboard } from "@/lib/data";
 import { getMyChampionCounts } from "@/lib/archive";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
+import Link from "next/link";
 import LogoutButton from "@/components/LogoutButton";
 import AccountSettings from "@/components/AccountSettings";
+import DeleteAccountButton from "@/components/DeleteAccountButton";
 
 export default async function HesabimPage() {
   const user = await getCurrentUser();
@@ -73,8 +75,34 @@ export default async function HesabimPage() {
 
       <AccountSettings displayName={user.displayName} email={user.email} hasPassword={user.passwordHash != null} />
 
-      <section>
+      <section className="flex flex-col gap-3">
         <LogoutButton full />
+        <DeleteAccountButton displayName={user.displayName} />
+      </section>
+
+      <section>
+        <h2 className="mb-3 font-display text-xl">Gizlilik</h2>
+        <Link
+          href="/gizlilik-politikasi"
+          className="flex items-center justify-between gap-3 rounded-2xl border border-card-border bg-card px-4 py-3.5 transition-colors hover:border-gold/40"
+        >
+          <div className="min-w-0">
+            <div className="text-sm font-bold">Gizlilik Politikası</div>
+            <div className="mt-0.5 text-xs text-ink-dim">
+              Hangi verileri topluyoruz, neden ve nasıl silebilirsin
+            </div>
+          </div>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden
+            className="h-4 w-4 flex-shrink-0 text-ink-faint"
+          >
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </Link>
       </section>
 
       <p className="pb-2 text-center text-xs text-ink-faint">
