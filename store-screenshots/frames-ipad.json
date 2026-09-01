@@ -1,0 +1,155 @@
+[
+  {
+    "slug": "mac-gunu",
+    "shot": "01-home.png",
+    "eyebrow": "SÜPER LİG",
+    "title": "Maç Sonucunu Bil,<br>Zirveye Çık",
+    "size": 74,
+    "sub": "₺1.000 sanal kasayla başla — gerçek para yok.",
+    "accent": "#f6c945",
+    "wash": "rgba(246,201,69,.30)",
+    "wash2": "rgba(58,86,168,.26)"
+  },
+  {
+    "slug": "kupon",
+    "shot": "02-stake.png",
+    "eyebrow": "BANKO JOKERİ",
+    "title": "Tahminini Kur,<br>Banko Yap",
+    "size": 80,
+    "sub": "Tutarsa kârın iki katına çıkar.",
+    "accent": "#f6c945",
+    "wash": "rgba(246,201,69,.32)",
+    "wash2": "rgba(169,138,46,.22)"
+  },
+  {
+    "slug": "sonuclar",
+    "shot": "03-tahminler.png",
+    "eyebrow": "SONUÇLAR",
+    "title": "Her Tahminin<br>Kaydı Burada",
+    "size": 80,
+    "sub": "Kilitli oran, stake ve sonuç — tek ekranda.",
+    "accent": "#3ecf8e",
+    "wash": "rgba(62,207,142,.28)",
+    "wash2": "rgba(58,86,168,.24)"
+  },
+  {
+    "slug": "cuzdan",
+    "shot": "04-cuzdan.png",
+    "eyebrow": "SANAL KASA",
+    "title": "Kasanı<br>Büyüt",
+    "sub": "Her hareket bir maça bağlı. Gerçek para yok.",
+    "accent": "#3ecf8e",
+    "wash": "rgba(62,207,142,.30)",
+    "wash2": "rgba(246,201,69,.22)"
+  },
+  {
+    "slug": "siralama",
+    "shot": "05-siralama.png",
+    "eyebrow": "SEZON YARIŞI",
+    "title": "Zirve İçin<br>Yarış",
+    "sub": "Net kâra göre sezonluk taraftar sıralaması.",
+    "accent": "#f6c945",
+    "wash": "rgba(246,201,69,.32)",
+    "wash2": "rgba(239,88,101,.20)",
+    "overlays": [
+      {
+        "x": 131,
+        "y": 518,
+        "w": 200,
+        "h": 47,
+        "name": "Taraftar34",
+        "note": "6/16 doğru · %38 isabet"
+      },
+      {
+        "x": 131,
+        "y": 596,
+        "w": 200,
+        "h": 47,
+        "name": "AslanYürek",
+        "note": "7/17 doğru · %41 isabet"
+      },
+      {
+        "x": 131,
+        "y": 673,
+        "w": 200,
+        "h": 47,
+        "name": "KartalPençe",
+        "note": "5/8 doğru · %63 isabet"
+      },
+      {
+        "x": 131,
+        "y": 752,
+        "w": 200,
+        "h": 47,
+        "name": "KanaryaEfe",
+        "note": "14/21 doğru · %67 isabet"
+      },
+      {
+        "x": 131,
+        "y": 830,
+        "w": 200,
+        "h": 47,
+        "name": "SahaKenarı",
+        "note": "Bu sezon henüz tahmin yok"
+      },
+      {
+        "x": 131,
+        "y": 908,
+        "w": 200,
+        "h": 47,
+        "name": "OnbirNumara",
+        "note": "Bu sezon henüz tahmin yok"
+      },
+      {
+        "x": 131,
+        "y": 986,
+        "w": 200,
+        "h": 47,
+        "name": "FormaAskısı",
+        "note": "Bu sezon henüz tahmin yok"
+      },
+      {
+        "x": 131,
+        "y": 1142,
+        "w": 200,
+        "h": 47,
+        "name": "TribünSesi",
+        "note": "0/1 doğru · %0 isabet"
+      },
+      {
+        "x": 131,
+        "y": 1220,
+        "w": 200,
+        "h": 47,
+        "name": "GolKrallığı",
+        "note": "4/8 doğru · %50 isabet"
+      },
+      {
+        "x": 131,
+        "y": 1297,
+        "w": 160,
+        "h": 47,
+        "name": "SonDakika",
+        "note": "5/18 doğru · %28 isabet"
+      }
+    ]
+  },
+  {
+    "slug": "ligler",
+    "shot": "06-lig.png",
+    "eyebrow": "ÖZEL LİGLER",
+    "title": "Arkadaşlarınla<br>Lig Kur",
+    "sub": "Davet kodunu paylaş, ikinize de ₺100 bonus.",
+    "accent": "#8a7bff",
+    "wash": "rgba(138,123,255,.30)",
+    "wash2": "rgba(246,201,69,.20)",
+    "masks": [
+      {
+        "x": 0,
+        "y": 744,
+        "w": 1032,
+        "h": 148
+      }
+    ]
+  }
+]
