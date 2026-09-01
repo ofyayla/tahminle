@@ -9,12 +9,14 @@ import { colors, fonts, radii } from "@/lib/theme";
 import { useAuth } from "@/lib/auth-context";
 import { api, ApiError } from "@/lib/api";
 import { API_BASE_URL } from "@/lib/config";
-import { IconArrowRight, IconCheck, IconLogout, IconPencil, IconShield, IconX } from "@/components/icons";
+import { IconArrowRight, IconCheck, IconInfo, IconLogout, IconPencil, IconShield, IconX } from "@/components/icons";
 
 // Opened in an in-app browser rather than bundled as a screen: the policy is
 // the same document Google Play's store listing points at, so there is only
 // ever one copy to keep current (app/gizlilik-politikasi on the backend).
 const PRIVACY_POLICY_URL = `${API_BASE_URL}/gizlilik-politikasi`;
+// Same page App Store Connect's listing points at as the app's Support URL.
+const SUPPORT_URL = `${API_BASE_URL}/destek`;
 
 export default function HesabimScreen() {
   const { user, rank, totalPlayers, refresh, logout, deleteAccount } = useAuth();
@@ -305,9 +307,22 @@ export default function HesabimScreen() {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Gizlilik</Text>
+        <Text style={styles.sectionTitle}>Yardım & Gizlilik</Text>
         <Pressable
-          style={styles.privacyRow}
+          style={[styles.privacyRow, { marginBottom: 10 }]}
+          onPress={() => WebBrowser.openBrowserAsync(SUPPORT_URL)}
+        >
+          <IconInfo size={18} color={colors.gold} />
+          <View style={styles.privacyTextWrap}>
+            <Text style={styles.privacyTitle}>Destek</Text>
+            <Text style={styles.privacySub}>
+              Sık sorulan sorular ve bize nasıl ulaşacağın
+            </Text>
+          </View>
+          <IconArrowRight size={16} color={colors.inkFaint} />
+        </Pressable>
+        <Pressable
+          style={[styles.privacyRow, { marginTop: 0 }]}
           onPress={() => WebBrowser.openBrowserAsync(PRIVACY_POLICY_URL)}
         >
           <IconShield size={18} color={colors.gold} />
