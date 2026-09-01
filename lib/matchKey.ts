@@ -67,10 +67,32 @@ export function isVirtualFixture(homeTeam: string, awayTeam: string): boolean {
 
 const FIXTURE_WINDOW_MS = 36 * 60 * 60 * 1000;
 
+// A fixture can move further than FIXTURE_WINDOW_MS and still be the *same*
+// match: the Süper Lig routinely shifts a game between the day it was first
+// listed on and the day it is actually played (e.g. Başakşehir–Galatasaray
+// first bulletined for a Sunday, then brought forward to the Friday — ~46h).
+// buildMatchKey embeds the calendar day, so a move like that mints a brand-new
+// externalId, and the tight window above then fails to reconcile it against
+// the old row, leaving two rows for one fixture. In this wider window we only
+// treat it as a reschedule when we are confident it is one and not two
+// distinct games: exact same competition, and the home/away orientation
+// unchanged (a reschedule never swaps sides, but a cup tie vs the same
+// opponent a few days from a league meeting could otherwise be folded in).
+const RESCHEDULE_WINDOW_MS = 5 * 24 * 60 * 60 * 1000;
+
+// Same competition after folding accents and the rotating sponsor prefix, so
+// Nesine's "Süper Lig" and the backend's "Trendyol Süper Lig" count as equal
+// while "UEFA Şampiyonlar Ligi" stays distinct from either.
+function isSameCompetition(a?: string | null, b?: string | null): boolean {
+  if (!a || !b) return false;
+  return foldTr(a) === foldTr(b);
+}
+
 // Whether two {homeTeam, awayTeam, kickoff} records plausibly describe the
 // same real-world fixture, tolerating providers who spell one side's club
-// differently (e.g. "Erzurumspor FK" vs "Erzurum BB") and who occasionally
-// swap which side is listed as home/away.
+// differently (e.g. "Erzurumspor FK" vs "Erzurum BB"), who occasionally swap
+// which side is listed as home/away, and who disagree on the kickoff day
+// because the fixture was rescheduled.
 //
 // BOTH sides must correspond — matching on just one shared name is not
 // enough. GS/FB/BJK play multiple different fixtures within any given
@@ -80,11 +102,18 @@ const FIXTURE_WINDOW_MS = 36 * 60 * 60 * 1000;
 // name appeared in both, silently overwriting one match's row (and its
 // already-placed predictions) with the other's data.
 export function isSameFixture(
-  a: { homeTeam: string; awayTeam: string; kickoff: Date },
-  b: { homeTeam: string; awayTeam: string; kickoff: Date }
+  a: { homeTeam: string; awayTeam: string; kickoff: Date; league?: string | null },
+  b: { homeTeam: string; awayTeam: string; kickoff: Date; league?: string | null }
 ): boolean {
-  if (Math.abs(a.kickoff.getTime() - b.kickoff.getTime()) > FIXTURE_WINDOW_MS) return false;
+  const gap = Math.abs(a.kickoff.getTime() - b.kickoff.getTime());
+  if (gap > RESCHEDULE_WINDOW_MS) return false;
+
   const straight = isSameTeamName(a.homeTeam, b.homeTeam) && isSameTeamName(a.awayTeam, b.awayTeam);
   const swapped = isSameTeamName(a.homeTeam, b.awayTeam) && isSameTeamName(a.awayTeam, b.homeTeam);
-  return straight || swapped;
+
+  if (gap <= FIXTURE_WINDOW_MS) return straight || swapped;
+
+  // Beyond the tight window, only a confident same-competition, same-
+  // orientation match is a reschedule of one fixture rather than two fixtures.
+  return straight && isSameCompetition(a.league, b.league);
 }
