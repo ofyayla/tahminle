@@ -31,9 +31,10 @@ SplashScreen.setOptions({ duration: 250, fade: true });
 // this long we drop into the app and let the screen show its own retry.
 const WARM_TIMEOUT_MS = 4000;
 // The splash always holds at least this long (from first JS render) so a fast
-// cold start doesn't flash by, then cross-fades to the app over SPLASH_FADE_MS.
+// cold start doesn't flash by, then plays the zoom-through hand-off over
+// SPLASH_EXIT_MS.
 const SPLASH_MIN_MS = 1500;
-const SPLASH_FADE_MS = 350;
+const SPLASH_EXIT_MS = 520;
 
 export default function RootLayout() {
   const [archivoLoaded] = useArchivoBlack({ ArchivoBlack_400Regular });
@@ -53,9 +54,10 @@ export default function RootLayout() {
   );
 }
 
-// Owns the launch splash. BootSplash (visually identical to the native splash)
-// sits on top of the navigator until everything the first screen needs is
-// ready AND the minimum hold has passed, then cross-fades away to reveal it.
+// Owns the launch splash. BootSplash (the gold wordmark on the same field as
+// the native splash) sits on top of the navigator until everything the first
+// screen needs is ready AND the minimum hold has passed, then plays its
+// zoom-through hand-off to reveal the app.
 function AppGate({ fontsLoaded }: { fontsLoaded: boolean }) {
   const { user, loading } = useAuth();
 
@@ -66,7 +68,8 @@ function AppGate({ fontsLoaded }: { fontsLoaded: boolean }) {
   const [warmed, setWarmed] = useState(false);
   const [minElapsed, setMinElapsed] = useState(false);
   const [splashGone, setSplashGone] = useState(false);
-  const [fade] = useState(() => new Animated.Value(1));
+  // 0 while the splash holds, animated to 1 to play the zoom-through exit.
+  const [exit] = useState(() => new Animated.Value(0));
 
   // Minimum on-screen time.
   useEffect(() => {
@@ -99,35 +102,39 @@ function AppGate({ fontsLoaded }: { fontsLoaded: boolean }) {
   const contentReady = fontsLoaded && !loading && (warmed || !landsOnMatchday);
   const revealApp = contentReady && minElapsed;
 
-  // Hand the native splash over to our identical BootSplash the moment JS is
-  // up, so the only animated transition the user sees is BootSplash -> app.
+  // Hand the native splash (same #0a0d16 field) over to BootSplash the moment
+  // JS is up, so the only animated transition the user sees is BootSplash -> app.
   const handOffNativeSplash = useCallback(() => {
     SplashScreen.hideAsync().catch(() => {});
   }, []);
 
-  // Cross-fade the splash out once the app behind it is ready and the minimum
-  // hold has passed.
+  // Play the zoom-through hand-off once the app behind it is ready and the
+  // minimum hold has passed: BootSplash rushes the wordmark up through the
+  // screen while this layer's field dissolves over the last stretch.
   useEffect(() => {
     if (!revealApp) return;
-    Animated.timing(fade, {
-      toValue: 0,
-      duration: SPLASH_FADE_MS,
-      easing: Easing.out(Easing.ease),
+    Animated.timing(exit, {
+      toValue: 1,
+      duration: SPLASH_EXIT_MS,
+      easing: Easing.in(Easing.cubic),
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished) setSplashGone(true);
     });
-  }, [revealApp, fade]);
+  }, [revealApp, exit]);
 
   return (
     <View style={styles.root}>
       {contentReady && <RootNavigator />}
       {!splashGone && (
         <Animated.View
-          style={[StyleSheet.absoluteFill, { opacity: fade }]}
+          style={[
+            StyleSheet.absoluteFill,
+            { opacity: exit.interpolate({ inputRange: [0, 0.6, 1], outputRange: [1, 1, 0] }) },
+          ]}
           pointerEvents={revealApp ? "none" : "auto"}
         >
-          <BootSplash onLayout={handOffNativeSplash} />
+          <BootSplash onLayout={handOffNativeSplash} exit={exit} />
         </Animated.View>
       )}
     </View>
