@@ -37,5 +37,6 @@ yarn-error.*
 *.tsbuildinfo
 
 # generated native folders
-/ios
+# /ios is committed so Xcode Cloud can find Tahminle.xcworkspace.
+# Re-run `npx expo prebuild -p ios` and commit after changing app.json / plugins / native deps.
 /android
