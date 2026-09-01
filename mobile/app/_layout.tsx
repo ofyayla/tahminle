@@ -105,7 +105,7 @@ function AppGate({ fontsLoaded }: { fontsLoaded: boolean }) {
   // Hand the native splash (same #0a0d16 field) over to BootSplash the moment
   // JS is up, so the only animated transition the user sees is BootSplash -> app.
   const handOffNativeSplash = useCallback(() => {
-    SplashScreen.hideAsync().catch(() => {});
+    setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 3500);
   }, []);
 
   // Play the zoom-through hand-off once the app behind it is ready and the
