@@ -26,25 +26,33 @@ export default function DavetScreen() {
     if (loading || attempted.current) return;
     attempted.current = true;
 
-    // Reached without an invite code (a stale deep link, a restored dev
-    // navigation state) — there's nothing to redeem, so just get out of the
-    // way instead of spinning forever.
-    if (!code) {
-      router.replace(user ? "/" : "/login");
-      return;
-    }
-
+    // Signed out: an invite hands off to the register screen to redeem at
+    // signup; without one there's nothing here but a trip to login.
     if (!user) {
-      router.replace({ pathname: "/register", params: { invite: code, ref: ref ?? "" } });
+      router.replace(
+        code
+          ? { pathname: "/register", params: { invite: code, ref: ref ?? "" } }
+          : "/login"
+      );
       return;
     }
 
     // A signed-in account mid-onboarding (no club picked yet — the OAuth
-    // path) has no "/lig" route mounted to land on. Drop the invite rather
-    // than fight the navigator: the link stays valid, so tapping it again
-    // after takim-sec works fine.
+    // path) has neither "/lig" nor the tabs mounted to land on, so "/" here
+    // would REPLACE onto an unmounted "(tabs)" and strand the screen. Send it
+    // to the one-time picker instead; the invite link stays valid, so tapping
+    // it again after takim-sec works fine. This has to run before the "no
+    // code" branch below, which also targets "/".
     if (user.favoriteTeam == null) {
       router.replace("/takim-sec");
+      return;
+    }
+
+    // Signed in and onboarded but reached without an invite code (a stale
+    // deep link, a restored dev navigation state) — nothing to redeem, so
+    // get out of the way instead of spinning forever.
+    if (!code) {
+      router.replace("/");
       return;
     }
 

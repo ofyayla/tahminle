@@ -43,13 +43,15 @@ client ID for each platform you ship (iOS, Android, Web), then:
 - put them in `app.json` under `extra.googleOAuth.{ios,android,web}`
 - list the same ids in the backend's `GOOGLE_OAUTH_CLIENT_IDS` (comma separated)
 
-The iOS/Android clients need the bundle id / package name `com.tahminle.app`.
-`redirectUri()` in `lib/oauth.ts` prints the redirect URI to register, if the
-console asks for one.
+The iOS/Android clients need the bundle id / package name `com.tahminle.mobile`,
+and all three (iOS, Android, Web) must live in the **same** Google Cloud project
+so they share one OAuth consent screen. The Android client also needs the SHA-1
+of the signing keystore EAS uses (`eas credentials -p android`). `redirectUri()`
+in `lib/oauth.ts` prints the redirect URI to register, if the console asks for one.
 
 **Apple** — Apple Developer portal → Certificates, Identifiers & Profiles →
 your App ID → enable "Sign in with Apple". Then set the backend's
-`APPLE_OAUTH_CLIENT_IDS` to `com.tahminle.app`. `app.json` already carries
+`APPLE_OAUTH_CLIENT_IDS` to `com.tahminle.mobile`. `app.json` already carries
 `ios.usesAppleSignIn` and the config plugin.
 
 > App Store Review Guideline 4.8: an iOS app offering third-party sign-in
