@@ -22,7 +22,17 @@ const PUBLIC_PATHS = ["/login", "/register"];
 // listing points at /gizlilik-politikasi and a reviewer (or anyone already
 // signed in who taps the link from inside the app) must land on the text
 // itself, never on a redirect.
-const OPEN_PREFIXES = ["/lig/", "/gizlilik-politikasi", "/hesap-silme"];
+//
+// /destek joins it for the same reason: App Store Connect's listing points
+// at /destek as the app's Support URL and a reviewer (or anyone already
+// signed in who taps "Yardım" from inside the app) must land on the page
+// itself, never on a redirect.
+const OPEN_PREFIXES = [
+  "/lig/",
+  "/gizlilik-politikasi",
+  "/hesap-silme",
+  "/destek",
+];
 
 async function isAuthenticated(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
