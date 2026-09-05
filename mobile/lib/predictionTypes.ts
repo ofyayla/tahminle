@@ -6,12 +6,6 @@ export type PredictionDTO = {
   oddsAtPick: number;
   status: "open" | "won" | "lost" | "cancelled";
   payout: number | null;
-  // This week's captain call — a won Banko pays double. Set at creation or
-  // via POST/DELETE /api/predictions/banko, at most one true per user per week.
-  isBanko: boolean;
-  // Set by settlement when a "lost" pick was covered by the sigorta joker —
-  // the stake was refunded (payout = stake) even though the call was wrong.
-  wasInsured: boolean;
   createdAt: string;
   settledAt: string | null;
   match: {

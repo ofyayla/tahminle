@@ -17,7 +17,7 @@ import { countUnread, getNotificationsSeenAt } from "@/lib/notificationsSeen";
 import { getOddsFor, type MarketCode } from "@/lib/markets";
 import { formatTL, formatTime } from "@/lib/format";
 import type { MatchDTO } from "@/lib/types";
-import type { MyLeague, WeeklyBankoStatus } from "@/lib/api";
+import type { MyLeague } from "@/lib/api";
 import { colors, fonts, radii } from "@/lib/theme";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
 import { useAuth } from "@/lib/auth-context";
@@ -31,7 +31,6 @@ export default function MacGunuScreen() {
   // load() below still runs to refresh and to pull in the non-critical extras.
   const [matches, setMatches] = useState<MatchDTO[]>(() => peekMatchday()?.matches ?? []);
   const [available, setAvailable] = useState(() => peekMatchday()?.available ?? 0);
-  const [weeklyBanko, setWeeklyBanko] = useState<WeeklyBankoStatus>(() => peekMatchday()?.weeklyBanko ?? null);
   const [wallet, setWallet] = useState(
     () => peekMatchday()?.wallet ?? { openCount: 0, lockedInOpen: 0, potentialReturn: 0, total: 0 }
   );
@@ -50,7 +49,6 @@ export default function MacGunuScreen() {
     const snap = await prefetchMatchday();
     setMatches(snap.matches);
     setAvailable(snap.available);
-    setWeeklyBanko(snap.weeklyBanko);
     setWallet(snap.wallet);
 
     // Same treatment as the notification badge below: a nicety, never a
@@ -271,9 +269,6 @@ export default function MacGunuScreen() {
             ) ?? 0
           }
           available={available}
-          weekBudget={selection.match.weekBudget}
-          matchBudget={selection.match.matchBudget}
-          weeklyBanko={weeklyBanko}
           onClose={() => setSelection(null)}
           onSuccess={async () => {
             setSelection(null);

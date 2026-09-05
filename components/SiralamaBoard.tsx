@@ -6,7 +6,6 @@ import LeaderboardBoard from "./LeaderboardBoard";
 import CommunityFeed from "./CommunityFeed";
 import InfoAccordion from "./InfoAccordion";
 import InviteFriendsCard from "./InviteFriendsCard";
-import { PER_MATCH_CAP, WEEKLY_BUDGET } from "@/lib/season";
 import type { CommunityFeedItem, LeaderboardScope } from "@/lib/data";
 import type { LeagueDetail, MyLeague } from "@/lib/leagues";
 
@@ -139,14 +138,12 @@ export default function SiralamaBoard({
             <LeaderboardBoard week={week} season={season} />
           </section>
 
-          <InfoAccordion title="Sıralama nasıl hesaplanır?" subtitle="Haftalık kasa ve net kâr" defaultOpen={false}>
+          <InfoAccordion title="Sıralama nasıl hesaplanır?" subtitle="Net kâr" defaultOpen={false}>
             Sıralamanın birimi puan değil, <span className="font-bold text-ink">lira</span> — kazandığın
-            tutar eksi yatırdığın tutar. Bir maç haftasında kendi tahminlerine yatırabileceğin toplam tutar{" "}
-            <span className="font-bold text-ink">₺{WEEKLY_BUDGET}</span> ile, tek bir maça yatırabileceğin
-            tutar ise <span className="font-bold text-ink">₺{PER_MATCH_CAP}</span> ile sınırlı — bu yüzden
-            yüksek bakiye sıralamada avantaj sağlamaz, herkes aynı kasayla oynar. Hediye edilen sürpriz
-            kuponlar seçimi sana ait olmadığı için sıralamaya girmez. Haftalık sıralama her Salı
-            sıfırlanır; sezonluk sıralama son 4 haftanın toplamıdır ve sezon sonunda sıfırlanır.
+            tutar eksi yatırdığın tutar. Yatırdığın tutarın tek sınırı sanal bakiyendir; haftalık ya da
+            maç başına bir limit yok. Hediye edilen sürpriz kuponlar seçimi sana ait olmadığı için
+            sıralamaya girmez. Haftalık sıralama her Salı sıfırlanır; sezonluk sıralama son 4 haftanın
+            toplamıdır ve sezon sonunda sıfırlanır.
           </InfoAccordion>
 
           <section>

@@ -12,7 +12,7 @@ export function inviteLink(inviteCode: string, referralCode: string | null | und
 }
 
 export function inviteMessage(leagueName: string, link: string): string {
-  return `Seni "${leagueName}" Taraftar Ligi'ne çağırıyorum ⚽️\nAynı kasa, aynı kurallar — bakalım kim daha iyi tahmin ediyor.\n\n${link}`;
+  return `Seni "${leagueName}" Taraftar Ligi'ne çağırıyorum ⚽️\nAynı fikstür, aynı kurallar — bakalım kim daha iyi tahmin ediyor.\n\n${link}`;
 }
 
 // Someone joining an existing session (not through the deep-linked register

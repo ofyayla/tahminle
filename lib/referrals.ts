@@ -36,7 +36,7 @@ export async function generateUniqueReferralCode(
 // Balance bonus paid to both sides of a referral when it's redeemed at
 // signup. This doesn't touch the leaderboard — net kâr is computed from
 // settled predictions, never raw balance (lib/data.ts) — it only widens how
-// much of the weekly kasa someone has room to actually use.
+// much someone has available to stake.
 export const REFERRAL_BONUS = 100;
 
 // Soft cap so one account can't farm free balance by registering a pile of

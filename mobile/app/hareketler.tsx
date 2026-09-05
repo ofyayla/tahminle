@@ -15,7 +15,6 @@ const ACTIVITY_ICON: Record<string, { Icon: (p: { size: number; color: string })
   win: { Icon: IconTrendUpArrow, bg: `${colors.green}1A`, color: colors.green },
   loss: { Icon: IconX, bg: `${colors.red}1A`, color: colors.red },
   cancel: { Icon: IconUndo, bg: `${colors.inkDim}1A`, color: colors.inkDim },
-  insured: { Icon: IconUndo, bg: `${colors.gold}26`, color: colors.gold },
   system: { Icon: IconInfo, bg: `${colors.gold}26`, color: colors.gold },
 };
 

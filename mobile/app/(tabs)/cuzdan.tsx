@@ -4,9 +4,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from "react-native-safe-area-context";
 import InfoAccordion from "@/components/InfoAccordion";
 import GoldGlow from "@/components/GoldGlow";
-import DoubleKasaCta from "@/components/DoubleKasaCta";
 import GiftInbox from "@/components/GiftInbox";
-import PerkStrip from "@/components/PerkStrip";
 import WalletQuickActions from "@/components/WalletQuickActions";
 import {
   IconArrowRight,
@@ -22,9 +20,8 @@ import {
 } from "@/components/icons";
 import ErrorBanner from "@/components/ErrorBanner";
 import { api } from "@/lib/api";
-import type { UserPerkStatus } from "@/lib/api";
 import { useScreenLoad } from "@/lib/useScreenLoad";
-import { budgetSegments, formatMatchDate, formatTime, formatTL } from "@/lib/format";
+import { formatMatchDate, formatTime, formatTL } from "@/lib/format";
 import { colors, fonts, radii } from "@/lib/theme";
 
 type WalletData = Awaited<ReturnType<typeof api.getWallet>>;
@@ -42,16 +39,14 @@ export default function CuzdanScreen() {
   const router = useRouter();
   const [data, setData] = useState<WalletData | null>(null);
   const [gifts, setGifts] = useState<GiftData | null>(null);
-  const [perks, setPerks] = useState<UserPerkStatus | null>(null);
 
   // Transfers and gifts are composed on their own screens now — this one only
   // needs the gift inbox, so the transfer request is gone from the tab's
   // critical path.
   const load = useCallback(async () => {
-    const [wallet, giftData, perksData] = await Promise.all([api.getWallet(), api.getGifts(), api.getPerks()]);
+    const [wallet, giftData] = await Promise.all([api.getWallet(), api.getGifts()]);
     setData(wallet);
     setGifts(giftData);
-    setPerks(perksData);
   }, []);
 
   const { loading, refreshing, error, refresh, reload } = useScreenLoad(load);
@@ -76,12 +71,6 @@ export default function CuzdanScreen() {
   }
 
   const { wallet, activity } = data;
-  const budgetOverCap = wallet.weeklyBudget.used > wallet.weeklyBudget.cap;
-  const { segments: budgetSegs, denom: budgetDenom } = budgetSegments(
-    wallet.weeklyBudget.byMatch,
-    wallet.weeklyBudget.cap,
-    wallet.weeklyBudget.used
-  );
   const unopenedGifts = gifts?.received.filter((g) => !g.opened).length ?? 0;
 
   return (
@@ -155,77 +144,6 @@ export default function CuzdanScreen() {
 
         {gifts && <GiftInbox received={gifts.received} onChanged={reload} />}
 
-        <View style={styles.budgetCard}>
-          <View style={styles.budgetHeaderRow}>
-            <View>
-              <Text style={styles.gridLabel}>Bu Haftaki Kasan</Text>
-              <Text style={styles.budgetValue}>
-                {formatTL(wallet.weeklyBudget.used)} / {formatTL(wallet.weeklyBudget.cap)}
-              </Text>
-            </View>
-            <View style={{ alignItems: "flex-end" }}>
-              {budgetOverCap ? (
-                <Text style={styles.budgetFull}>Kasan doldu</Text>
-              ) : (
-                <>
-                  <Text style={styles.budgetRemaining}>{formatTL(wallet.weeklyBudget.remaining)}</Text>
-                  <Text style={styles.gridFooterText}>kaldı</Text>
-                </>
-              )}
-            </View>
-          </View>
-
-          <View style={styles.segmentTrack}>
-            {budgetSegs.map((s, i) => (
-              <View
-                key={s.label}
-                style={{
-                  width: `${(s.stake / budgetDenom) * 100}%`,
-                  backgroundColor: s.color,
-                  borderRightWidth: i < budgetSegs.length - 1 ? 1 : 0,
-                  borderRightColor: colors.card,
-                }}
-              />
-            ))}
-          </View>
-
-          {budgetSegs.length > 0 && (
-            <View style={styles.segmentLegend}>
-              {budgetSegs.map((s) => (
-                <View key={s.label} style={styles.segmentLegendItem}>
-                  <View style={[styles.segmentDot, { backgroundColor: s.color }]} />
-                  <Text style={styles.segmentLegendText}>
-                    {s.label} {formatTL(s.stake)}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          <Text style={styles.budgetNote}>
-            Kendi tahminlerine bu hafta yatırabileceğin toplam tutar — bakiyen ne kadar büyük olursa olsun aynı. Her Salı yenilenir.
-          </Text>
-          {budgetOverCap && (
-            <Text style={styles.budgetNoteMuted}>
-              Kasa kuralından önce yaptığın tahminler de bu toplama dahil. Gelecek Salı&apos;dan itibaren gerçek anlamda işleyecek.
-            </Text>
-          )}
-
-          {/* The joker that doubles this kasa belongs to this card, not to a
-              separate perks drawer — it surfaces where it pays off. */}
-          {perks && (
-            <DoubleKasaCta
-              perks={perks}
-              cap={wallet.weeklyBudget.cap}
-              used={wallet.weeklyBudget.used}
-              overCap={budgetOverCap}
-              onActivated={reload}
-            />
-          )}
-        </View>
-
-        {perks && <PerkStrip perks={perks} />}
-
         <View style={styles.flowHeaderRow}>
           <Text style={styles.sectionTitle}>Son Hareketler</Text>
           <Pressable onPress={() => router.push("/hareketler")} hitSlop={8}>
@@ -294,18 +212,6 @@ const styles = StyleSheet.create({
   // Tighter than the other blocks: the quick-action row reads as part of the
   // hero rather than as the next card down.
   heroCard: { borderRadius: radii["3xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 20, marginBottom: 12, overflow: "hidden" },
-  budgetCard: { borderRadius: radii["2xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 16, marginBottom: 20 },
-  budgetHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 },
-  budgetValue: { color: colors.ink, fontSize: 17, fontFamily: fonts.display, marginTop: 2 },
-  budgetRemaining: { color: colors.gold, fontSize: 14, fontFamily: fonts.display },
-  budgetFull: { color: colors.inkDim, fontSize: 13, fontFamily: fonts.display },
-  segmentTrack: { flexDirection: "row", height: 10, borderRadius: 5, backgroundColor: colors.bgElevated, overflow: "hidden" },
-  segmentLegend: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 12 },
-  segmentLegendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
-  segmentDot: { width: 8, height: 8, borderRadius: 3 },
-  segmentLegendText: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular },
-  budgetNote: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.regular, marginTop: 10 },
-  budgetNoteMuted: { color: colors.inkFaint, fontSize: 11, fontFamily: fonts.regular, marginTop: 6 },
   heroTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   heroLabel: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.bold, textTransform: "uppercase" },
   heroValue: { color: colors.gold, fontSize: 32, fontFamily: fonts.display, marginTop: 4 },

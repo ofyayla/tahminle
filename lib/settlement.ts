@@ -121,19 +121,6 @@ export async function settleDueMatches() {
 
   if (startedMatches.length === 0) return 0;
 
-  // Sigorta jokeri kullanılmış açık tahminler — bu turda kaybeden bir
-  // tahmin bu sette varsa iade edilecek. Tek sorguda toplanır, per-tahmin
-  // ayrı bir sorguya gerek kalmaz.
-  const openPredictionIds = startedMatches.flatMap((m) => m.predictions.map((p) => p.id));
-  const insuredPredictionIds = new Set(
-    (
-      await prisma.seasonPerk.findMany({
-        where: { kind: "insurance", predictionId: { in: openPredictionIds } },
-        select: { predictionId: true },
-      })
-    ).map((r) => r.predictionId!)
-  );
-
   let realResults: Awaited<ReturnType<typeof fetchRealResults>> = [];
   try {
     realResults = await fetchRealResults();
@@ -280,22 +267,14 @@ export async function settleDueMatches() {
             won = isWinningChoice(pred.market as MarketCode, pred.choice, { result, resultOver25, resultBtts });
           }
 
-          const insured = !won && insuredPredictionIds.has(pred.id);
-          // Banko: a won pick doubles its payout — the whole point of the
-          // weekly captain's call. Sigorta: a lost pick that was insured
-          // gets its stake back instead, status still "lost" since the call
-          // itself was wrong, just covered.
-          const payout = won
-            ? Math.round(pred.stake * pred.oddsAtPick) * (pred.isBanko ? 2 : 1)
-            : insured
-            ? pred.stake
-            : 0;
+          // A won pick pays stake × locked odds; a lost one pays nothing.
+          const payout = won ? Math.round(pred.stake * pred.oddsAtPick) : 0;
 
           // Same guard, per-prediction: only credit balance if this call is
           // the one that actually transitions it out of "open".
           const predClaim = await prisma.prediction.updateMany({
             where: { id: pred.id, status: "open" },
-            data: { status: won ? "won" : "lost", payout, wasInsured: insured, settledAt: new Date() },
+            data: { status: won ? "won" : "lost", payout, settledAt: new Date() },
           });
           if (predClaim.count === 0) return;
 
@@ -310,10 +289,9 @@ export async function settleDueMatches() {
           if (won) bucket.won++;
           else bucket.lost++;
           bucket.payout += payout;
-          // An insured loss cost nothing, same reason a gift's stake never
-          // came out of its recipient's own pocket — neither should count
-          // as "staked" in the summary push.
-          bucket.staked += insured || pred.gift ? 0 : pred.stake;
+          // A gift's stake never came out of its recipient's own pocket, so
+          // it must not count as "staked" in the summary push.
+          bucket.staked += pred.gift ? 0 : pred.stake;
           outcomeByUser.set(pred.userId, bucket);
         })
       );
@@ -354,12 +332,6 @@ export async function settleDueMatches() {
             where: { id: refundTo },
             data: { balance: { increment: pred.stake } },
           });
-
-          // A postponed match never resolved either way, so a sigorta spent
-          // on it protected nothing — free the joker back up rather than
-          // burning the user's one per season on a pick that was never
-          // actually at risk.
-          await prisma.seasonPerk.deleteMany({ where: { kind: "insurance", predictionId: pred.id } });
 
           refundedByUser.set(refundTo, (refundedByUser.get(refundTo) ?? 0) + pred.stake);
         })

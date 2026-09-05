@@ -7,8 +7,8 @@ export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 // A maç haftası (Faz 1, madde 01): Tuesday 00:00 → Monday 23:59 Istanbul time,
 // independent of any season anchor — pure calendar math, valid for any date.
-// Haftalık takip ve tüm hafta pencereleri (kasa, sıralama, banko, haftanın
-// birincisi) Salı'dan Salı'ya işler; birinci ödülleri Salı 09:00'da hesaplanır.
+// Haftalık takip ve tüm hafta pencereleri (sıralama, haftanın birincisi)
+// Salı'dan Salı'ya işler; birinci ödülleri Salı 09:00'da hesaplanır.
 export function weekStartFor(date: Date): Date {
   const local = new Date(date.getTime() + ISTANBUL_OFFSET_MS);
   const daysSinceTuesday = (local.getUTCDay() + 5) % 7;
@@ -59,15 +59,6 @@ export function seasonWeekNumber(date: Date): number {
 
 // Sezon başı / sıfırlama sonrası bakiye.
 export const STARTING_BALANCE = 1000;
-
-// Haftalık kasa: bir maç haftasında kendi tahminlerine yatırabileceğin toplam
-// tutar. Herkes için aynıdır — bakiye ne olursa olsun kasa büyümez, bu yüzden
-// zengin bir bakiye sıralamayı satın alamaz.
-export const WEEKLY_BUDGET = 3000;
-
-// Tek bir maça (tüm marketleri toplamda) yatırılabilecek en fazla tutar —
-// haftanın tamamının tek kupona bağlanmasını engeller.
-export const PER_MATCH_CAP = 1000;
 
 // Salı desteği: haftaya bu tutarın altında giren oyuncunun bakiyesi bu
 // tutara tamamlanır. Sezonu tek kötü haftada kaybetmeyi imkânsız kılar.

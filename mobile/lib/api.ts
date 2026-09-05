@@ -134,15 +134,6 @@ export type SentGift = {
   status: string;
 };
 
-// Mirrors lib/data.ts's WeeklyBankoStatus.
-export type WeeklyBankoStatus = { predictionId: string; matchId: string; label: string; locked: boolean } | null;
-
-// Mirrors lib/perks.ts's UserPerkStatus.
-export type UserPerkStatus = {
-  doubleKasa: { available: boolean; usedForWeekStart: string | null };
-  insurance: { available: boolean; usedForPredictionId: string | null };
-};
-
 // Mirrors lib/leagues.ts's MyLeague/LeagueDetail/LeaguePreview.
 export type MyLeague = { id: string; name: string; inviteCode: string; memberCount: number; isOwner: boolean };
 export type LeagueDetail = MyLeague & { week: LeaderboardScope; season: LeaderboardScope };
@@ -254,7 +245,7 @@ export const api = {
     request<{
       activity: {
         id: string;
-        kind: "system" | "lock" | "win" | "loss" | "cancel" | "insured";
+        kind: "system" | "lock" | "win" | "loss" | "cancel";
         title: string;
         subtitle: string;
         amount: number;
@@ -263,35 +254,12 @@ export const api = {
     }>("/api/activity"),
 
 
-  getMatches: () =>
-    request<{ matches: MatchDTO[]; available: number; weeklyBanko: WeeklyBankoStatus }>("/api/matches"),
+  getMatches: () => request<{ matches: MatchDTO[]; available: number }>("/api/matches"),
 
-  placePrediction: (matchId: string, market: string, choice: string, stake: number, isBanko = false) =>
-    request<{ ok: true; prediction: unknown; bankoError: string | null }>("/api/predictions", {
+  placePrediction: (matchId: string, market: string, choice: string, stake: number) =>
+    request<{ ok: true; prediction: unknown }>("/api/predictions", {
       method: "POST",
-      body: JSON.stringify({ matchId, market, choice, stake, isBanko }),
-    }),
-
-  setBanko: (predictionId: string) =>
-    request<{ ok: true }>("/api/predictions/banko", {
-      method: "POST",
-      body: JSON.stringify({ predictionId }),
-    }),
-
-  clearBanko: (predictionId: string) =>
-    request<{ ok: true }>("/api/predictions/banko", {
-      method: "DELETE",
-      body: JSON.stringify({ predictionId }),
-    }),
-
-  getPerks: () => request<UserPerkStatus>("/api/perks"),
-
-  activateDoubleKasa: () => request<{ ok: true }>("/api/perks/double-kasa", { method: "POST" }),
-
-  activateInsurance: (predictionId: string) =>
-    request<{ ok: true }>("/api/perks/insurance", {
-      method: "POST",
-      body: JSON.stringify({ predictionId }),
+      body: JSON.stringify({ matchId, market, choice, stake }),
     }),
 
   getMyLeagues: () => request<{ leagues: MyLeague[] }>("/api/leagues"),
@@ -353,16 +321,6 @@ export const api = {
         openCount: number;
         weekChange: number;
         totalNet: number;
-        weeklyBudget: {
-          cap: number;
-          used: number;
-          remaining: number;
-          // Optional: the mobile app and the deployed backend redeploy
-          // independently, so a client can briefly be ahead of the API
-          // that added this field. budgetSegments() treats a missing value
-          // as "no breakdown" rather than crashing.
-          byMatch?: { matchId: string; label: string; stake: number }[];
-        };
       };
       startBalance: number;
       activity: {

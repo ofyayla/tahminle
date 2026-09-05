@@ -1,12 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUserId } from "@/lib/auth";
-import {
-  getCommunityPulse,
-  getMatchBudgets,
-  getUpcomingMatches,
-  getWalletSummary,
-  getWeeklyBankoStatus,
-} from "@/lib/data";
+import { getCommunityPulse, getUpcomingMatches, getWalletSummary } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import type { MatchDTO } from "@/lib/types";
 
@@ -21,14 +15,13 @@ export async function GET() {
     return NextResponse.json({ error: "Giriş yapmalısın." }, { status: 401 });
   }
 
-  const [matches, wallet, openPredictions, weeklyBanko] = await Promise.all([
+  const [matches, wallet, openPredictions] = await Promise.all([
     getUpcomingMatches(),
     getWalletSummary(userId),
     prisma.prediction.findMany({
       where: { userId, status: "open" },
       select: { matchId: true, market: true, choice: true },
     }),
-    getWeeklyBankoStatus(userId),
   ]);
 
   const openByMatchId = new Map<string, Record<string, string>>();
@@ -37,10 +30,7 @@ export async function GET() {
     bucket[p.market] = p.choice;
     openByMatchId.set(p.matchId, bucket);
   }
-  const [pulseByMatchId, budgetsByMatchId] = await Promise.all([
-    getCommunityPulse(matches.map((m) => m.id)),
-    getMatchBudgets(userId, matches),
-  ]);
+  const pulseByMatchId = await getCommunityPulse(matches.map((m) => m.id));
 
   const matchDTOs: MatchDTO[] = matches.map((m) => ({
     id: m.id,
@@ -71,9 +61,7 @@ export async function GET() {
     aiAnalysis: m.aiAnalysis,
     openByMarket: openByMatchId.get(m.id) ?? {},
     pulse: pulseByMatchId[m.id] ?? { total: 0, home: 0, draw: 0, away: 0 },
-    weekBudget: budgetsByMatchId.get(m.id)?.weekBudget ?? { cap: 0, used: 0, remaining: 0 },
-    matchBudget: budgetsByMatchId.get(m.id)?.matchBudget ?? { cap: 0, used: 0, remaining: 0 },
   }));
 
-  return NextResponse.json({ matches: matchDTOs, available: wallet.available, weeklyBanko });
+  return NextResponse.json({ matches: matchDTOs, available: wallet.available });
 }

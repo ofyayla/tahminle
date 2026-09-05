@@ -1,27 +1,14 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import TeamAvatar from "./TeamAvatar";
 import { formatMatchDate, formatOdds, formatTime, formatTL } from "@/lib/format";
 import { getActualResultLabel, getChoiceLabel, getMarketName } from "@/lib/markets";
 import type { PredictionDTO } from "@/lib/predictionTypes";
-import { api, ApiError, type UserPerkStatus, type WeeklyBankoStatus } from "@/lib/api";
 import { colors, fonts, radii } from "@/lib/theme";
 import { IconCheck, IconChevronDown, IconClock, IconUndo, IconX } from "./icons";
 
-export default function PredictionCard({
-  prediction,
-  weeklyBanko,
-  perks,
-  onChanged,
-}: {
-  prediction: PredictionDTO;
-  weeklyBanko?: WeeklyBankoStatus;
-  perks?: UserPerkStatus | null;
-  onChanged?: () => void;
-}) {
+export default function PredictionCard({ prediction }: { prediction: PredictionDTO }) {
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState<"banko" | "insurance" | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
 
   const { match } = prediction;
   const kickoff = new Date(match.kickoff);
@@ -30,11 +17,10 @@ export default function PredictionCard({
   const resultText = getActualResultLabel(match, prediction.market, match);
   const potential = Math.round(prediction.stake * prediction.oddsAtPick);
   const isSettled = prediction.status !== "open";
-  const insuredLoss = prediction.status === "lost" && prediction.wasInsured;
   const walletEffect =
     prediction.status === "won"
       ? (prediction.payout ?? 0)
-      : prediction.status === "cancelled" || insuredLoss
+      : prediction.status === "cancelled"
       ? prediction.stake
       : -prediction.stake;
 
@@ -42,47 +28,13 @@ export default function PredictionCard({
     prediction.status === "open"
       ? { label: "Maç bekleniyor", color: colors.gold, Icon: IconClock }
       : prediction.status === "won"
-      ? { label: prediction.isBanko ? "Kazandın · Banko 2x" : "Kazandın", color: colors.green, Icon: IconCheck }
+      ? { label: "Kazandın", color: colors.green, Icon: IconCheck }
       : prediction.status === "cancelled"
       ? { label: "Ertelendi · İade edildi", color: colors.inkDim, Icon: IconUndo }
-      : insuredLoss
-      ? { label: "Kaybettin · Sigortalı", color: colors.inkDim, Icon: IconUndo }
       : { label: "Kaybettin", color: colors.red, Icon: IconX };
 
-  const canActOnBanko = prediction.status === "open" && match.status === "upcoming";
-  const bankoLockedElsewhere = !!weeklyBanko && weeklyBanko.matchId !== match.id && weeklyBanko.locked;
-  const isInsuredOpen = perks?.insurance.usedForPredictionId === prediction.id;
-  const canInsure = canActOnBanko && !isInsuredOpen && !!perks?.insurance.available;
-
-  async function toggleBanko() {
-    setActionError(null);
-    setBusy("banko");
-    try {
-      if (prediction.isBanko) await api.clearBanko(prediction.id);
-      else await api.setBanko(prediction.id);
-      onChanged?.();
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Banko güncellenemedi.");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function insure() {
-    setActionError(null);
-    setBusy("insurance");
-    try {
-      await api.activateInsurance(prediction.id);
-      onChanged?.();
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Sigorta uygulanamadı.");
-    } finally {
-      setBusy(null);
-    }
-  }
-
   return (
-    <View style={[styles.card, prediction.isBanko && styles.cardBanko]}>
+    <View style={styles.card}>
       <View style={styles.topRow}>
         <View style={styles.statusRow}>
           <statusMeta.Icon size={14} color={statusMeta.color} />
@@ -94,21 +46,6 @@ export default function PredictionCard({
             : prediction.settledAt && formatMatchDate(new Date(prediction.settledAt))}
         </Text>
       </View>
-
-      {(prediction.isBanko || isInsuredOpen) && (
-        <View style={styles.badgeRow}>
-          {prediction.isBanko && (
-            <View style={styles.bankoBadge}>
-              <Text style={styles.bankoBadgeText}>🎖 Bu haftanın bankosu</Text>
-            </View>
-          )}
-          {isInsuredOpen && (
-            <View style={styles.insuranceBadge}>
-              <Text style={styles.insuranceBadgeText}>🛡 Sigortalı</Text>
-            </View>
-          )}
-        </View>
-      )}
 
       <View style={styles.matchRow}>
         <TeamAvatar name={match.homeTeam} size={32} />
@@ -144,7 +81,7 @@ export default function PredictionCard({
           <Text style={styles.statLabel}>
             {prediction.status === "open"
               ? "Olası Dönüş"
-              : prediction.status === "cancelled" || insuredLoss
+              : prediction.status === "cancelled"
               ? "İade"
               : "Sonuç"}
           </Text>
@@ -152,52 +89,18 @@ export default function PredictionCard({
             style={[
               styles.statValue,
               prediction.status === "won" && { color: colors.green },
-              prediction.status === "lost" && !insuredLoss && { color: colors.red },
-              (prediction.status === "cancelled" || insuredLoss) && { color: colors.inkDim },
+              prediction.status === "lost" && { color: colors.red },
+              prediction.status === "cancelled" && { color: colors.inkDim },
             ]}
           >
-            {prediction.status === "lost" && !insuredLoss
+            {prediction.status === "lost"
               ? `-${formatTL(prediction.stake)}`
-              : prediction.status === "cancelled" || insuredLoss
+              : prediction.status === "cancelled"
               ? `+${formatTL(prediction.stake)}`
-              : formatTL(
-                  prediction.status === "won" ? prediction.payout ?? 0 : prediction.isBanko ? potential * 2 : potential
-                )}
+              : formatTL(prediction.status === "won" ? prediction.payout ?? 0 : potential)}
           </Text>
         </View>
       </View>
-
-      {canActOnBanko && (
-        <View style={styles.actionsRow}>
-          <Pressable
-            disabled={busy !== null || (!prediction.isBanko && bankoLockedElsewhere)}
-            onPress={toggleBanko}
-            style={[
-              styles.actionBtn,
-              prediction.isBanko && styles.actionBtnActive,
-              (busy !== null || (!prediction.isBanko && bankoLockedElsewhere)) && { opacity: 0.4 },
-            ]}
-          >
-            {busy === "banko" ? (
-              <ActivityIndicator size="small" color={colors.gold} />
-            ) : (
-              <Text style={[styles.actionBtnText, prediction.isBanko && { color: colors.gold }]}>
-                {prediction.isBanko ? "🎖 Bankoyu Kaldır" : "🎖 Banko Yap"}
-              </Text>
-            )}
-          </Pressable>
-          {canInsure && (
-            <Pressable disabled={busy !== null} onPress={insure} style={[styles.actionBtn, busy !== null && { opacity: 0.4 }]}>
-              {busy === "insurance" ? (
-                <ActivityIndicator size="small" color={colors.inkDim} />
-              ) : (
-                <Text style={styles.actionBtnText}>🛡 Sigortala</Text>
-              )}
-            </Pressable>
-          )}
-        </View>
-      )}
-      {actionError && <Text style={styles.actionError}>{actionError}</Text>}
 
       {isSettled && (
         <View style={styles.detailWrap}>
@@ -224,7 +127,7 @@ export default function PredictionCard({
                       color:
                         prediction.status === "won"
                           ? colors.green
-                          : prediction.status === "cancelled" || insuredLoss
+                          : prediction.status === "cancelled"
                           ? colors.inkDim
                           : colors.red,
                     },
@@ -268,16 +171,10 @@ export default function PredictionCard({
 
 const styles = StyleSheet.create({
   card: { borderRadius: radii["2xl"], borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 16 },
-  cardBanko: { borderColor: `${colors.gold}80`, backgroundColor: `${colors.gold}0D` },
   topRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
   statusRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   status: { fontSize: 11, fontFamily: fonts.semibold },
   date: { fontSize: 11, fontFamily: fonts.regular, color: colors.inkFaint },
-  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
-  bankoBadge: { backgroundColor: `${colors.gold}26`, borderRadius: radii.lg, paddingHorizontal: 10, paddingVertical: 6 },
-  bankoBadgeText: { color: colors.gold, fontSize: 11, fontFamily: fonts.bold },
-  insuranceBadge: { backgroundColor: colors.bgElevated, borderRadius: radii.lg, paddingHorizontal: 10, paddingVertical: 6 },
-  insuranceBadgeText: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.bold },
   matchRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
   matchTitle: { color: colors.ink, fontFamily: fonts.bold, fontSize: 13 },
   matchSub: { color: colors.inkFaint, fontSize: 11, fontFamily: fonts.regular, marginTop: 2 },
@@ -309,20 +206,6 @@ const styles = StyleSheet.create({
   statCol: { flex: 1, alignItems: "center" },
   statLabel: { fontSize: 10, fontFamily: fonts.semibold, color: colors.inkDim, textTransform: "uppercase" },
   statValue: { fontSize: 14, fontFamily: fonts.display, color: colors.ink, marginTop: 4 },
-  actionsRow: { flexDirection: "row", gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.cardBorder },
-  actionBtn: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.bgElevated,
-    borderRadius: radii.lg,
-    paddingVertical: 9,
-  },
-  actionBtnActive: { borderColor: colors.gold, backgroundColor: `${colors.gold}1A` },
-  actionBtnText: { color: colors.inkDim, fontSize: 11, fontFamily: fonts.bold },
-  actionError: { color: colors.red, fontSize: 11, fontFamily: fonts.regular, marginTop: 8 },
   detailWrap: { marginTop: 12, borderTopWidth: 1, borderTopColor: colors.cardBorder, paddingTop: 12 },
   detailToggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   detailToggle: { color: colors.inkDim, fontSize: 12, fontFamily: fonts.bold },

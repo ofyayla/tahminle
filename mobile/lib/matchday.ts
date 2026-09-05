@@ -1,4 +1,4 @@
-import { api, type WeeklyBankoStatus } from "./api";
+import { api } from "./api";
 import type { MatchDTO } from "./types";
 
 // The slice of Maç Günü the hero + match list need to paint. Everything else
@@ -7,7 +7,6 @@ import type { MatchDTO } from "./types";
 export type MatchdaySnapshot = {
   matches: MatchDTO[];
   available: number;
-  weeklyBanko: WeeklyBankoStatus;
   wallet: { openCount: number; lockedInOpen: number; potentialReturn: number; total: number };
 };
 
@@ -24,7 +23,6 @@ async function fetchMatchday(): Promise<MatchdaySnapshot> {
   return {
     matches: matchesRes.matches,
     available: matchesRes.available,
-    weeklyBanko: matchesRes.weeklyBanko,
     wallet: {
       openCount: walletRes.wallet.openCount,
       lockedInOpen: walletRes.wallet.lockedInOpen,

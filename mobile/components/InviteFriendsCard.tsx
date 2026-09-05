@@ -68,7 +68,7 @@ export default function InviteFriendsCard({
             &quot;{league.name}&quot;ni Büyüt
           </Text>
           <Text style={styles.note}>
-            Ligindeki herkes aynı kasada oynuyor. Bir arkadaşını daha ekle, rekabet kızışsın.
+            Ligindeki herkes aynı kurallarla oynuyor. Bir arkadaşını daha ekle, rekabet kızışsın.
           </Text>
           <Pressable style={styles.cta} onPress={shareExistingLeague}>
             <IconShare size={15} color={colors.bg} />
@@ -79,7 +79,7 @@ export default function InviteFriendsCard({
         <>
           <Text style={styles.title}>Kendi ligini kur</Text>
           <Text style={styles.note}>
-            Global sıralama binlerce kişi arasında kaybolur. Arkadaşlarınla aynı kasada, sadece aranızda bir
+            Global sıralama binlerce kişi arasında kaybolur. Arkadaşlarınla sadece aranızda bir
             sıralama kur — kim daha iyi tahmin ediyor, gerçekten görün.
           </Text>
           <Pressable

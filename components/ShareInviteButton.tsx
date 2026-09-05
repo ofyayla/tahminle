@@ -6,7 +6,7 @@ import { useState } from "react";
 // pitch, so a friend gets the same message whether it came from the phone
 // app or this web dashboard.
 function inviteMessage(leagueName: string, link: string): string {
-  return `Seni "${leagueName}" Taraftar Ligi'ne çağırıyorum ⚽️\nAynı kasa, aynı kurallar — bakalım kim daha iyi tahmin ediyor.\n\n${link}`;
+  return `Seni "${leagueName}" Taraftar Ligi'ne çağırıyorum ⚽️\nAynı fikstür, aynı kurallar — bakalım kim daha iyi tahmin ediyor.\n\n${link}`;
 }
 
 export default function ShareInviteButton({

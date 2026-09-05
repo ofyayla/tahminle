@@ -70,8 +70,9 @@ export async function deleteAccount(userId: string): Promise<DeleteAccountResult
         where: { OR: [{ senderId: userId }, { recipientId: userId }] },
       });
 
-      // SeasonPerk.predictionId carries no FK — it is a bare unique column —
-      // so this only has to precede the user delete, not the prediction one.
+      // SeasonPerk is a retired feature (jokerler kaldırıldı) whose table
+      // still exists with rows pointing at users — they must still go before
+      // the user delete, or its userId FK blocks it.
       await tx.seasonPerk.deleteMany({ where: { userId } });
       await tx.prediction.deleteMany({ where: { userId } });
 

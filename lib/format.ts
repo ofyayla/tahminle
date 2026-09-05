@@ -74,33 +74,3 @@ export function formatCountdown(end: Date, now: Date = new Date()): string {
   if (hours >= 1) return `${hours} saat kaldı`;
   return "az kaldı";
 }
-
-export type BudgetSegment = { label: string; stake: number; color: string };
-
-const BUDGET_TONES = ["#f6c945", "#d9b13e", "#a98a2e", "#7a6423"];
-const BUDGET_OTHER_TONE = "#616a80";
-
-// Turns a per-match kasa breakdown into colored bar segments, capped at 4
-// distinct matches with any remainder bucketed into one "Diğer" slice so the
-// legend never sprawls past a glance. Segment widths are relative to `used`
-// once it exceeds `cap` (there's no headroom left to show), and to `cap`
-// otherwise, so the bar always reads the same way it's captioned.
-export function budgetSegments(
-  // Optional/nullable to tolerate an older cached client or a backend
-  // response from before this field existed — a stale read should degrade
-  // to "no breakdown", never crash the wallet screen.
-  byMatch: { label: string; stake: number }[] | null | undefined,
-  cap: number,
-  used: number
-): { segments: BudgetSegment[]; denom: number } {
-  const list = byMatch ?? [];
-  const MAX = 4;
-  const top = list.slice(0, MAX).map((m, i) => ({ label: m.label, stake: m.stake, color: BUDGET_TONES[i] }));
-  const restCount = list.length - MAX;
-  const restStake = list.slice(MAX).reduce((sum, m) => sum + m.stake, 0);
-  const segments =
-    restCount > 0
-      ? [...top, { label: `Diğer ${restCount} maç`, stake: restStake, color: BUDGET_OTHER_TONE }]
-      : top;
-  return { segments, denom: used > cap ? used : cap };
-}

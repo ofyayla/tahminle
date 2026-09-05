@@ -18,7 +18,7 @@ const SAMPLE_ROWS = [
 
 // Mirrors mobile/lib/referral.ts's inviteMessage/inviteLink shape.
 function inviteMessage(leagueName: string, link: string): string {
-  return `Seni "${leagueName}" Taraftar Ligi'ne çağırıyorum ⚽️\nAynı kasa, aynı kurallar — bakalım kim daha iyi tahmin ediyor.\n\n${link}`;
+  return `Seni "${leagueName}" Taraftar Ligi'ne çağırıyorum ⚽️\nAynı fikstür, aynı kurallar — bakalım kim daha iyi tahmin ediyor.\n\n${link}`;
 }
 
 // Used two places: full-width and always open in the Sıralama page's
@@ -77,7 +77,7 @@ export default function InviteFriendsCard({
         <>
           <p className="font-display text-lg">&quot;{league.name}&quot;ni Büyüt</p>
           <p className="mt-2 text-sm leading-relaxed text-ink-dim">
-            Ligindeki herkes aynı kasada oynuyor. Bir arkadaşını daha ekle, rekabet kızışsın.
+            Ligindeki herkes aynı kurallarla oynuyor. Bir arkadaşını daha ekle, rekabet kızışsın.
           </p>
           <button
             type="button"
@@ -95,7 +95,7 @@ export default function InviteFriendsCard({
         <>
           <p className="font-display text-lg">Kendi ligini kur</p>
           <p className="mt-2 text-sm leading-relaxed text-ink-dim">
-            Global sıralama binlerce kişi arasında kaybolur. Arkadaşlarınla aynı kasada, sadece aranızda bir
+            Global sıralama binlerce kişi arasında kaybolur. Arkadaşlarınla sadece aranızda bir
             sıralama kur — kim daha iyi tahmin ediyor, gerçekten görün.
           </p>
           <Link

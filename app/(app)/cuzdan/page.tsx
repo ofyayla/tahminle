@@ -1,14 +1,11 @@
 import { getCurrentUser } from "@/lib/auth";
 import { getRecentActivity, getWalletSummary, syncMatchState } from "@/lib/data";
 import { getGiftsFor } from "@/lib/gifts";
-import { getUserPerkStatus } from "@/lib/perks";
 import { getChoiceLabel, getMarketName, type MarketCode } from "@/lib/markets";
-import { budgetSegments, formatTL } from "@/lib/format";
+import { formatTL } from "@/lib/format";
 import ActivityFeed from "@/components/ActivityFeed";
 import InfoAccordion from "@/components/InfoAccordion";
-import DoubleKasaCta from "@/components/DoubleKasaCta";
 import GiftInbox from "@/components/GiftInbox";
-import PerkStrip from "@/components/PerkStrip";
 import WalletQuickActions from "@/components/WalletQuickActions";
 
 // syncMatchState() can fall back to a headless-browser live-score scrape
@@ -22,11 +19,10 @@ export default async function CuzdanPage() {
   await syncMatchState();
   // Transfer targets/history moved to /cuzdan/gonder — this page only needs
   // the gift inbox, so that request is gone from its critical path.
-  const [wallet, activity, gifts, perks] = await Promise.all([
+  const [wallet, activity, gifts] = await Promise.all([
     getWalletSummary(user.id),
     getRecentActivity(user.id, 5),
     getGiftsFor(user.id),
-    getUserPerkStatus(user.id),
   ]);
 
   // Unopened gifts must not leak their selection into the page payload, so
@@ -51,12 +47,6 @@ export default async function CuzdanPage() {
       : null,
   }));
 
-  const budgetOverCap = wallet.weeklyBudget.used > wallet.weeklyBudget.cap;
-  const { segments: budgetSegs, denom: budgetDenom } = budgetSegments(
-    wallet.weeklyBudget.byMatch,
-    wallet.weeklyBudget.cap,
-    wallet.weeklyBudget.used
-  );
   const unopenedGifts = receivedGifts.filter((g) => !g.opened).length;
 
   return (
@@ -149,71 +139,6 @@ export default async function CuzdanPage() {
       />
 
       <GiftInbox received={receivedGifts} />
-
-      <section className="rounded-2xl border border-card-border bg-card p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-wide text-ink-dim">Bu Haftaki Kasan</div>
-            <div className="font-display text-lg mt-0.5">
-              {formatTL(wallet.weeklyBudget.used)} / {formatTL(wallet.weeklyBudget.cap)}
-            </div>
-          </div>
-          <div className="text-right text-xs text-ink-dim">
-            {budgetOverCap ? (
-              <div className="font-display text-sm text-ink-dim">Kasan doldu</div>
-            ) : (
-              <>
-                <div className="font-display text-sm text-gold">{formatTL(wallet.weeklyBudget.remaining)}</div>
-                kaldı
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-bg-elevated">
-          {budgetSegs.map((s, i) => (
-            <div
-              key={s.label}
-              style={{
-                width: `${(s.stake / budgetDenom) * 100}%`,
-                backgroundColor: s.color,
-                borderRight: i < budgetSegs.length - 1 ? "1px solid var(--card)" : undefined,
-              }}
-            />
-          ))}
-        </div>
-
-        {budgetSegs.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-ink-dim">
-            {budgetSegs.map((s) => (
-              <span key={s.label} className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 flex-shrink-0 rounded-[3px]" style={{ backgroundColor: s.color }} />
-                {s.label} {formatTL(s.stake)}
-              </span>
-            ))}
-          </div>
-        )}
-
-        <p className="mt-3 text-[11px] text-ink-dim">
-          Kendi tahminlerine bu hafta yatırabileceğin toplam tutar — bakiyen ne kadar büyük olursa olsun aynı. Her Salı yenilenir.
-        </p>
-        {budgetOverCap && (
-          <p className="mt-1.5 text-[11px] text-ink-faint">
-            Kasa kuralından önce yaptığın tahminler de bu toplama dahil. Gelecek Salı&apos;dan itibaren gerçek anlamda işleyecek.
-          </p>
-        )}
-
-        {/* The joker that doubles this kasa belongs to this card, not to a
-            separate perks drawer — it surfaces where it pays off. */}
-        <DoubleKasaCta
-          perks={perks}
-          cap={wallet.weeklyBudget.cap}
-          used={wallet.weeklyBudget.used}
-          overCap={budgetOverCap}
-        />
-      </section>
-
-      <PerkStrip perks={perks} />
 
       <ActivityFeed items={activity} viewAllHref="/cuzdan/hareketler" />
 

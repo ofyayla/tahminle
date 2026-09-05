@@ -10,7 +10,6 @@ import { api, type LeagueDetail, type MyLeague } from "@/lib/api";
 import type { LeaderboardRow, LeaderboardScope } from "@/lib/api";
 import { useScreenLoad } from "@/lib/useScreenLoad";
 import { formatCountdown, formatDateRange, formatTL } from "@/lib/format";
-import { PER_MATCH_CAP, WEEKLY_BUDGET } from "@/lib/season";
 import { getChoiceLabel, type MarketCode } from "@/lib/markets";
 import { TEAM_META, type TeamCode } from "@/lib/teams";
 import { colors, fonts, radii } from "@/lib/theme";
@@ -158,7 +157,7 @@ export default function SiralamaScreen() {
             <Text style={styles.eyebrow}>Taraftar Ligi</Text>
             <Text style={styles.title}>Sıralama</Text>
             <Text style={styles.pageSub}>
-              Net kârına göre sıralanıyorsun. Bakiyen ne kadar büyük olursa olsun herkesin kasası aynı.
+              Net kârına göre sıralanıyorsun — kazandığın tutar eksi yatırdığın tutar.
             </Text>
 
             <View style={styles.modeRow}>
@@ -325,13 +324,12 @@ export default function SiralamaScreen() {
           ) : (
             <View style={{ marginTop: 8 }}>
               <View style={{ marginBottom: 20 }}>
-                <InfoAccordion title="Sıralama nasıl hesaplanır?" subtitle="Haftalık kasa ve net kâr" defaultOpen={false}>
-                  Sıralamanın birimi puan değil, lira — kazandığın tutar eksi yatırdığın tutar. Bir maç
-                  haftasında kendi tahminlerine yatırabileceğin toplam tutar ₺{WEEKLY_BUDGET} ile, tek bir
-                  maça yatırabileceğin tutar ise ₺{PER_MATCH_CAP} ile sınırlı — bu yüzden yüksek bakiye
-                  sıralamada avantaj sağlamaz, herkes aynı kasayla oynar. Hediye edilen sürpriz kuponlar
-                  seçimi sana ait olmadığı için sıralamaya girmez. Haftalık sıralama her Salı
-                  sıfırlanır; sezonluk sıralama son 4 haftanın toplamıdır ve sezon sonunda sıfırlanır.
+                <InfoAccordion title="Sıralama nasıl hesaplanır?" subtitle="Net kâr" defaultOpen={false}>
+                  Sıralamanın birimi puan değil, lira — kazandığın tutar eksi yatırdığın tutar.
+                  Yatırdığın tutarın tek sınırı sanal bakiyendir; haftalık ya da maç başına bir limit
+                  yok. Hediye edilen sürpriz kuponlar seçimi sana ait olmadığı için sıralamaya girmez.
+                  Haftalık sıralama her Salı sıfırlanır; sezonluk sıralama son 4 haftanın toplamıdır ve
+                  sezon sonunda sıfırlanır.
                 </InfoAccordion>
               </View>
 

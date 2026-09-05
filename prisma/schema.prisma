@@ -197,9 +197,9 @@ model Match {
 
   predictions Prediction[]
 
-  // Weekly kasa and haftalık/sezonluk sıralama both group predictions by
-  // their match's kickoff week (lib/season.ts), which Prisma resolves as a
-  // join + range filter on this column.
+  // Haftalık/sezonluk sıralama groups predictions by their match's kickoff
+  // week (lib/season.ts), which Prisma resolves as a join + range filter on
+  // this column.
   @@index([kickoff])
 }
 
@@ -213,23 +213,18 @@ model Prediction {
   oddsAtPick Float
   // open | won | lost | cancelled. "cancelled" is a match that ended up
   // "postponed" (see Match.status) — the stake was refunded, payout stays
-  // null, and it counts toward neither the weekly kasa nor the leaderboard.
+  // null, and it does not count toward the leaderboard.
   status     String    @default("open")
   payout     Int?
   createdAt  DateTime  @default(now())
   settledAt  DateTime?
 
-  // This week's Banko (lib/banko.ts enforces at most one true per user per
-  // week — there's no DB constraint for it since "week" isn't a stored
-  // column, only derived from the match's kickoff). A won Banko's payout is
-  // doubled at settlement; a lost one costs exactly what any other pick would.
-  isBanko Boolean @default(false)
-
-  // Set by settlement.ts when this pick lost but was covered by the sigorta
-  // joker (lib/perks.ts) — the stake was refunded (payout = stake) rather
-  // than lost, and status stays "lost" since the pick itself was still wrong.
-  // Denormalized here (rather than joined from SeasonPerk at read time) so
-  // every wallet/leaderboard/activity read site can branch on it directly.
+  // RETIRED. Banko (won pick pays double) and Sigorta (lost pick refunded)
+  // were removed along with the rest of the jokers; nothing reads or writes
+  // these any more. The columns are kept so historical rows stay intact and
+  // so retiring the feature needed no destructive migration — drop them in a
+  // dedicated migration if the history is ever no longer wanted.
+  isBanko    Boolean @default(false)
   wasInsured Boolean @default(false)
 
   user  User  @relation(fields: [userId], references: [id])
@@ -272,22 +267,16 @@ model SeasonChampion {
   @@index([userId])
 }
 
-// One row per joker actually used. `kind` is "double_kasa" | "insurance".
-// The @@unique on (userId, seasonStart, kind) is the enforcement mechanism
-// for "once per season, per joker" — activating a joker is a `create` that
-// either succeeds or throws a unique-constraint error, no separate
-// check-then-write race to guard against.
+// RETIRED. One row per joker (Çifte Kasa / Sigorta) that was used back when
+// jokers existed. Nothing writes here any more; the table is kept for its
+// historical rows, and lib/account.ts still clears a departing user's rows
+// because the userId FK would otherwise block their delete.
 model SeasonPerk {
   id          String   @id @default(cuid())
   userId      String
   seasonStart DateTime
   kind        String
-  // double_kasa: which week's kasa it doubles.
   weekStart   DateTime?
-  // insurance: which prediction it protects. Unique so a prediction can only
-  // ever be insured once (redundant with the per-season unique above, since
-  // that already caps a user to one insurance activation per season, but
-  // keeps the column's own meaning airtight).
   predictionId String?  @unique
   createdAt   DateTime  @default(now())
 

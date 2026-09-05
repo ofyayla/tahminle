@@ -3,15 +3,12 @@ import { ensureFreshMatches } from "./scraper";
 import { settleDueMatches, refreshMatchStatuses } from "./settlement";
 import {
   applyPeriodicAdjustments,
-  PER_MATCH_CAP,
-  WEEKLY_BUDGET,
   seasonEndFor,
   seasonStartFor,
   weekEndFor,
   weekStartFor,
 } from "./season";
 import { awardSeasonChampionIfDue, awardWeeklyChampionIfDue } from "./weeklyChampion";
-import { DOUBLE_KASA_MULTIPLIER, boostedWeekStarts, weeklyBudgetCapFor } from "./perks";
 
 export async function syncMatchState() {
   try {
@@ -66,144 +63,16 @@ export async function getMatchById(id: string) {
   return prisma.match.findUnique({ where: { id } });
 }
 
-export type WeeklyBankoStatus = {
-  predictionId: string;
-  matchId: string;
-  label: string;
-  locked: boolean;
-} | null;
-
-// The user's currently-assigned Banko for the current week, if any and if
-// still open — drives the bet-slip's toggle (is this pick already the
-// Banko, is it moveable, or is a different match's pick locked in instead).
-export async function getWeeklyBankoStatus(userId: string, now: Date = new Date()): Promise<WeeklyBankoStatus> {
-  const current = await prisma.prediction.findFirst({
-    where: {
-      userId,
-      isBanko: true,
-      status: "open",
-      match: { kickoff: { gte: weekStartFor(now), lt: weekEndFor(now) } },
-    },
-    select: { id: true, matchId: true, match: { select: { homeTeam: true, awayTeam: true, kickoff: true } } },
-  });
-  if (!current) return null;
-
-  return {
-    predictionId: current.id,
-    matchId: current.matchId,
-    label: `${current.match.homeTeam} – ${current.match.awayTeam}`,
-    locked: current.match.kickoff.getTime() <= now.getTime(),
-  };
-}
-
-export type Budget = { cap: number; used: number; remaining: number };
-
-function toBudget(cap: number, used: number): Budget {
-  return { cap, used, remaining: Math.max(0, cap - used) };
-}
-
-export type WeeklyBudgetMatch = { matchId: string; label: string; stake: number };
-export type WeeklyBudgetBreakdown = Budget & { byMatch: WeeklyBudgetMatch[] };
-
-// The current week's kasa usage, broken down by match — shown on the wallet
-// screen. `used` can exceed `cap` for a user who already had open/settled
-// predictions this week before the kasa limit shipped: it isn't enforced
-// retroactively, only on new predictions going forward (see
-// app/api/predictions/route.ts), so a week that was already in progress at
-// rollout can show more than the cap until it resets next Tuesday.
-export async function getWeeklyBudgetBreakdown(
-  userId: string,
-  now: Date = new Date()
-): Promise<WeeklyBudgetBreakdown> {
-  const rows = await prisma.prediction.findMany({
-    where: {
-      userId,
-      gift: { is: null },
-      status: { in: ["open", "won", "lost"] },
-      match: { kickoff: { gte: weekStartFor(now), lt: weekEndFor(now) } },
-    },
-    select: { stake: true, matchId: true, match: { select: { homeTeam: true, awayTeam: true } } },
-  });
-
-  const byMatchMap = new Map<string, WeeklyBudgetMatch>();
-  let used = 0;
-  for (const r of rows) {
-    used += r.stake;
-    const entry = byMatchMap.get(r.matchId) ?? {
-      matchId: r.matchId,
-      label: `${r.match.homeTeam} – ${r.match.awayTeam}`,
-      stake: 0,
-    };
-    entry.stake += r.stake;
-    byMatchMap.set(r.matchId, entry);
-  }
-
-  const byMatch = [...byMatchMap.values()].sort((a, b) => b.stake - a.stake);
-  const cap = await weeklyBudgetCapFor(userId, weekStartFor(now));
-  return { ...toBudget(cap, used), byMatch };
-}
-
-// Per-match and per-match's-week budgets for a batch of matches, keyed by
-// matchId — a match can belong to a different week than "now" if fixtures
-// are already posted for next week, so each match's own kickoff decides
-// which week's kasa it draws from.
-export async function getMatchBudgets(
-  userId: string,
-  matches: { id: string; kickoff: Date }[]
-): Promise<Map<string, { weekBudget: Budget; matchBudget: Budget }>> {
-  const result = new Map<string, { weekBudget: Budget; matchBudget: Budget }>();
-  if (matches.length === 0) return result;
-
-  const starts = matches.map((m) => weekStartFor(m.kickoff).getTime());
-  const ends = matches.map((m) => weekEndFor(m.kickoff).getTime());
-  const rangeStart = new Date(Math.min(...starts));
-  const rangeEnd = new Date(Math.max(...ends));
-
-  const rows = await prisma.prediction.findMany({
-    where: {
-      userId,
-      gift: { is: null },
-      status: { in: ["open", "won", "lost"] },
-      match: { kickoff: { gte: rangeStart, lt: rangeEnd } },
-    },
-    select: { stake: true, matchId: true, match: { select: { kickoff: true } } },
-  });
-
-  const perMatch = new Map<string, number>();
-  const perWeek = new Map<number, number>();
-  for (const r of rows) {
-    perMatch.set(r.matchId, (perMatch.get(r.matchId) ?? 0) + r.stake);
-    const weekKey = weekStartFor(r.match.kickoff).getTime();
-    perWeek.set(weekKey, (perWeek.get(weekKey) ?? 0) + r.stake);
-  }
-
-  const distinctWeekStarts = [...new Set(matches.map((m) => weekStartFor(m.kickoff).getTime()))].map(
-    (ms) => new Date(ms)
-  );
-  const boosted = await boostedWeekStarts(userId, distinctWeekStarts);
-
-  for (const m of matches) {
-    const weekKey = weekStartFor(m.kickoff).getTime();
-    const cap = boosted.has(weekKey) ? WEEKLY_BUDGET * DOUBLE_KASA_MULTIPLIER : WEEKLY_BUDGET;
-    result.set(m.id, {
-      weekBudget: toBudget(cap, perWeek.get(weekKey) ?? 0),
-      matchBudget: toBudget(PER_MATCH_CAP, perMatch.get(m.id) ?? 0),
-    });
-  }
-  return result;
-}
-
 export async function getWalletSummary(userId: string) {
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-  const [user, openPredictions, settledThisWeek, weeklyBudget] = await Promise.all([
+  const [user, openPredictions, settledThisWeek] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: userId } }),
     prisma.prediction.findMany({ where: { userId, status: "open" } }),
     prisma.prediction.findMany({
       where: { userId, status: { in: ["won", "lost"] }, settledAt: { gte: weekAgo } },
       include: { gift: { select: { id: true } } },
     }),
-    getWeeklyBudgetBreakdown(userId),
   ]);
 
   const lockedInOpen = openPredictions.reduce((sum, p) => sum + p.stake, 0);
@@ -215,9 +84,8 @@ export async function getWalletSummary(userId: string) {
     // A gifted prediction's stake came out of the sender's balance, never this
     // user's — so a losing gift costs them nothing and only the payout counts.
     const cost = p.gift ? 0 : p.stake;
-    // Uniform for won/lost: payout is 0 for a plain loss (net = -cost), the
-    // refunded stake for a sigorta-covered loss (net = 0), and the (possibly
-    // Banko-doubled) winnings for a win — no per-status branching needed.
+    // Uniform for won/lost: payout is 0 for a plain loss (net = -cost) and
+    // the winnings for a win — no per-status branching needed.
     return sum + (p.payout ?? 0) - cost;
   }, 0);
 
@@ -232,7 +100,6 @@ export async function getWalletSummary(userId: string) {
     openCount: openPredictions.length,
     weekChange,
     totalNet: user.balance - user.startBalance,
-    weeklyBudget,
   };
 }
 
@@ -277,7 +144,7 @@ export async function getPerformanceStats(userId: string) {
 
 export type ActivityItem = {
   id: string;
-  kind: "system" | "lock" | "win" | "loss" | "cancel" | "insured";
+  kind: "system" | "lock" | "win" | "loss" | "cancel";
   title: string;
   subtitle: string;
   amount: number;
@@ -308,19 +175,12 @@ export async function getRecentActivity(userId: string, limit = 6): Promise<Acti
 
     if (p.status !== "open" && p.settledAt) {
       const cancelled = p.status === "cancelled";
-      const insuredLoss = p.status === "lost" && p.wasInsured;
       items.push({
         id: `${p.id}-settle`,
-        kind: cancelled ? "cancel" : insuredLoss ? "insured" : p.status === "won" ? "win" : "loss",
+        kind: cancelled ? "cancel" : p.status === "won" ? "win" : "loss",
         title: cancelled ? `${label} ertelendi` : `${label} sonucu işlendi`,
-        subtitle: cancelled ? "İade edildi" : insuredLoss ? "Sigortalı · iade aldın" : "Maç sonucu",
-        amount: cancelled
-          ? p.stake
-          : insuredLoss
-          ? p.payout ?? p.stake
-          : p.status === "won"
-          ? (p.payout ?? 0)
-          : -p.stake,
+        subtitle: cancelled ? "İade edildi" : "Maç sonucu",
+        amount: cancelled ? p.stake : p.status === "won" ? (p.payout ?? 0) : -p.stake,
         at: p.settledAt,
       });
     }
@@ -517,9 +377,8 @@ export async function getLeaderboard(
       const bucket = tally.get(p.userId) ?? { net: 0, correct: 0, total: 0 };
       bucket.total++;
       if (p.status === "won") bucket.correct++;
-      // Uniform for won/lost: payout is 0 for a plain loss, the refunded
-      // stake for a sigorta-covered one, and the (possibly Banko-doubled)
-      // winnings for a win.
+      // Uniform for won/lost: payout is 0 for a plain loss and the winnings
+      // for a win.
       bucket.net += (p.payout ?? 0) - p.stake;
       tally.set(p.userId, bucket);
     }

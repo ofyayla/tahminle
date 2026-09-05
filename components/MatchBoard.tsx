@@ -6,16 +6,13 @@ import MatchRowCompact from "./MatchRowCompact";
 import PredictionSheet from "./PredictionSheet";
 import { getOddsFor, type MarketCode } from "@/lib/markets";
 import type { MatchDTO } from "@/lib/types";
-import type { WeeklyBankoStatus } from "@/lib/data";
 
 export default function MatchBoard({
   matches,
   available,
-  weeklyBanko,
 }: {
   matches: MatchDTO[];
   available: number;
-  weeklyBanko: WeeklyBankoStatus;
 }) {
   const [selection, setSelection] = useState<{ match: MatchDTO; market: MarketCode; choice: string } | null>(null);
   // Which of the compact rows the user has opened. The featured match is
@@ -68,9 +65,6 @@ export default function MatchBoard({
             ) ?? 0
           }
           available={available}
-          weekBudget={selection.match.weekBudget}
-          matchBudget={selection.match.matchBudget}
-          weeklyBanko={weeklyBanko}
           onClose={() => setSelection(null)}
         />
       )}

@@ -3,10 +3,8 @@ import { getCurrentUser } from "@/lib/auth";
 import {
   getCommunityPulse,
   getLeaderboard,
-  getMatchBudgets,
   getUpcomingMatches,
   getWalletSummary,
-  getWeeklyBankoStatus,
 } from "@/lib/data";
 import { formatTL, formatTime } from "@/lib/format";
 import MatchBoard from "@/components/MatchBoard";
@@ -27,7 +25,7 @@ export default async function MacGunuPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const [matches, wallet, leaderboard, openPredictions, weeklyBanko, myLeagues] = await Promise.all([
+  const [matches, wallet, leaderboard, openPredictions, myLeagues] = await Promise.all([
     getUpcomingMatches(),
     getWalletSummary(user.id),
     getLeaderboard(user.id),
@@ -35,7 +33,6 @@ export default async function MacGunuPage() {
       where: { userId: user.id, status: "open" },
       select: { matchId: true, market: true, choice: true },
     }),
-    getWeeklyBankoStatus(user.id),
     getMyLeagues(user.id),
   ]);
   const openByMatchId = new Map<string, Record<string, string>>();
@@ -44,10 +41,7 @@ export default async function MacGunuPage() {
     bucket[p.market] = p.choice;
     openByMatchId.set(p.matchId, bucket);
   }
-  const [pulseByMatchId, budgetsByMatchId] = await Promise.all([
-    getCommunityPulse(matches.map((m) => m.id)),
-    getMatchBudgets(user.id, matches),
-  ]);
+  const pulseByMatchId = await getCommunityPulse(matches.map((m) => m.id));
 
   const matchDTOs: MatchDTO[] = matches.map((m) => ({
     id: m.id,
@@ -78,8 +72,6 @@ export default async function MacGunuPage() {
     aiAnalysis: m.aiAnalysis,
     openByMarket: openByMatchId.get(m.id) ?? {},
     pulse: pulseByMatchId[m.id] ?? { total: 0, home: 0, draw: 0, away: 0 },
-    weekBudget: budgetsByMatchId.get(m.id)?.weekBudget ?? { cap: 0, used: 0, remaining: 0 },
-    matchBudget: budgetsByMatchId.get(m.id)?.matchBudget ?? { cap: 0, used: 0, remaining: 0 },
   }));
 
   const favMeta = user.favoriteTeam ? TEAM_META[user.favoriteTeam as TeamCode] : null;
@@ -199,7 +191,7 @@ export default async function MacGunuPage() {
           <span className="text-xs font-semibold text-ink-faint">{matchDTOs.length} maç</span>
         </div>
         <p className="mb-3 text-sm text-ink-dim">Kulübünün maçını seç, sanal tahminini kur.</p>
-        <MatchBoard matches={matchDTOs} available={wallet.available} weeklyBanko={weeklyBanko} />
+        <MatchBoard matches={matchDTOs} available={wallet.available} />
       </section>
 
       <div className="mx-auto flex items-center gap-2 rounded-full border border-card-border bg-card px-3 py-1.5 text-[11px] font-semibold text-ink-dim">
